@@ -80,7 +80,9 @@ class PlayerComponent extends Component with HasGameReference<RutaDeCenizasGame>
     }
     
     // Update dust
-    _dust.forEach((d) => d.update(dt));
+    for (final d in _dust) {
+      d.update(dt);
+    }
     _dust.removeWhere((d) => d.life <= 0);
   }
 
@@ -91,7 +93,9 @@ class PlayerComponent extends Component with HasGameReference<RutaDeCenizasGame>
     if (_visualPos == null) return;
     
     // Render dust first
-    _dust.forEach((d) => d.render(canvas));
+    for (final d in _dust) {
+      d.render(canvas);
+    }
 
     final paint = Paint()..color = const Color(0xFF1A1A1A);
     final borderPaint = Paint()

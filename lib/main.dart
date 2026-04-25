@@ -101,15 +101,28 @@ void main() {
                   if (game.eventMessage == null) return const SizedBox.shrink();
                   
                   final isAtajo = game.currentEventType == TileType.atajo;
-                  final accentColor = isAtajo ? const Color(0xFF00CED1) : const Color(0xFFFF4500);
-                  final icon = isAtajo ? Icons.auto_awesome : Icons.warning_amber_rounded;
+                  final isHistoria = game.currentEventType == TileType.historia;
+                  
+                  Color bgColor = const Color(0xFF121212).withValues(alpha: 0.95);
+                  Color accentColor = isAtajo ? const Color(0xFF00CED1) : const Color(0xFFFF4500);
+                  Color textColor = Colors.white;
+                  IconData icon = isAtajo ? Icons.auto_awesome : Icons.warning_amber_rounded;
+                  String title = isAtajo ? "FORTUNA" : "PELIGRO";
+                  
+                  if (isHistoria) {
+                    bgColor = const Color(0xFFE6D5B8).withValues(alpha: 0.95); // Parchment
+                    accentColor = const Color(0xFF5D4037); // Dark brown
+                    textColor = const Color(0xFF3E2723); // Very dark brown
+                    icon = Icons.menu_book;
+                    title = "FRAGMENTO\nENCONTRADO";
+                  }
 
                   return Center(
                     child: Container(
                       width: 300, // Fixed width for stability
                       padding: const EdgeInsets.symmetric(vertical: 30, horizontal: 25),
                       decoration: BoxDecoration(
-                        color: const Color(0xFF121212).withValues(alpha: 0.95),
+                        color: bgColor,
                         borderRadius: BorderRadius.circular(4),
                         border: Border(left: BorderSide(color: accentColor, width: 4)),
                         boxShadow: [
@@ -129,7 +142,8 @@ void main() {
                               Icon(icon, color: accentColor, size: 24),
                               const SizedBox(width: 12),
                               Text(
-                                isAtajo ? "FORTUNA" : "PELIGRO",
+                                title,
+                                textAlign: TextAlign.center,
                                 style: TextStyle(
                                   color: accentColor,
                                   letterSpacing: 4,
@@ -143,8 +157,8 @@ void main() {
                           Text(
                             game.eventMessage!.toUpperCase(),
                             textAlign: TextAlign.center,
-                            style: const TextStyle(
-                              color: Colors.white,
+                            style: TextStyle(
+                              color: textColor,
                               fontSize: 16,
                               height: 1.5,
                               fontWeight: FontWeight.w300,
@@ -152,12 +166,12 @@ void main() {
                             ),
                           ),
                           const SizedBox(height: 25),
-                          Container(height: 1, width: 40, color: Colors.white.withValues(alpha: 0.2)),
+                          Container(height: 1, width: 40, color: textColor.withValues(alpha: 0.2)),
                           const SizedBox(height: 15),
                           Text(
                             "TOCA LOS DADOS PARA CONTINUAR",
                             style: TextStyle(
-                              color: Colors.white.withValues(alpha: 0.4),
+                              color: textColor.withValues(alpha: 0.4),
                               fontSize: 9,
                               letterSpacing: 2,
                             ),

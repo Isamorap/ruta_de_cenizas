@@ -58,12 +58,16 @@ class DiceComponent extends PositionComponent with TapCallbacks, HasGameReferenc
       canvas.drawRRect(RRect.fromRectAndRadius(Rect.fromLTWH(0, 0, 50, 50).inflate(4), const Radius.circular(10)), glowPaint);
       if (showTwoDice) {
         canvas.drawRRect(RRect.fromRectAndRadius(Rect.fromLTWH(70, 0, 50, 50).inflate(4), const Radius.circular(10)), glowPaint);
+      } else {
+        canvas.drawRRect(RRect.fromRectAndRadius(Rect.fromLTWH(40, 0, 50, 50).inflate(4), const Radius.circular(10)), glowPaint);
       }
     }
 
-    _drawDie(canvas, Offset(0, 0), value1);
     if (showTwoDice) {
+      _drawDie(canvas, Offset(0, 0), value1);
       _drawDie(canvas, Offset(70, 0), value2);
+    } else {
+      _drawDie(canvas, Offset(40, 0), value1);
     }
   }
 

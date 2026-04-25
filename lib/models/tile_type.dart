@@ -3,4 +3,5 @@ enum TileType {
   barranco,
   atajo,
   suceso,
+  historia,
 }

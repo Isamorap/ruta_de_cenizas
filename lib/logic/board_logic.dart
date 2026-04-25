@@ -64,6 +64,28 @@ class BoardLogic {
         ));
       }
     }
+    // Place exactly 10 history tiles
+    List<int> normalIndices = [];
+    for (int i = 0; i < board.length; i++) {
+      if (board[i].type == TileType.normal && board[i].row > 1) { // Avoid first 2 rows
+        normalIndices.add(i);
+      }
+    }
+    
+    normalIndices.shuffle(_rand);
+    final historyCount = min(10, normalIndices.length);
+    for (int i = 0; i < historyCount; i++) {
+      int idx = normalIndices[i];
+      final oldTile = board[idx];
+      board[idx] = TileData(
+        row: oldTile.row,
+        col: oldTile.col,
+        type: TileType.historia,
+        index: oldTile.index,
+        surfaceColor: oldTile.surfaceColor,
+      );
+    }
+
     return board;
   }
 }

@@ -100,7 +100,9 @@ class TableroTile extends Component with HasGameReference<RutaDeCenizasGame> {
     canvas.drawPath(frontPath, borderPaint);
 
     // Draw index number
-    _drawIndex(canvas, p1, p2, p3, p4);
+    if (isVisited) {
+      _drawIndex(canvas, p1, p2, p3, p4);
+    }
   }
 
   void _drawIndex(Canvas canvas, Offset p1, Offset p2, Offset p3, Offset p4) {
@@ -147,6 +149,8 @@ class TableroTile extends Component with HasGameReference<RutaDeCenizasGame> {
         return const Color(0xFF4682B4); 
       case TileType.suceso:
         return const Color(0xFFC0C0C0);
+      case TileType.historia:
+        return const Color(0xFFDAA520); // Amber/Golden for history
       case TileType.normal:
         return surfaceColor; 
     }

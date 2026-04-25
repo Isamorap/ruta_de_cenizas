@@ -3,7 +3,8 @@ import 'package:flame/game.dart';
 import 'package:flame/components.dart';
 import 'package:flame/events.dart';
 import 'package:flame_audio/flame_audio.dart' hide PlayerState;
-import 'package:flutter/material.dart' hide Path; // Avoid conflict with dart:ui if any
+import 'package:flutter/material.dart'
+    hide Path; // Avoid conflict with dart:ui if any
 import 'package:flutter/services.dart';
 import 'components/tablero_tile.dart';
 import 'models/tile_type.dart';
@@ -32,7 +33,7 @@ class RutaDeCenizasGame extends FlameGame with KeyboardEvents, ChangeNotifier {
     "El cansancio te vence y pierdes el equilibrio... abajo.",
     "Una grieta oculta bajo el polvo se traga tu avance.",
     "Tus dedos resbalan en la piedra fría. El descenso es inevitable.",
-    "La neblina te confunde y tropiezas con el abismo."
+    "La neblina te confunde y tropiezas con el abismo.",
   ];
 
   final List<String> _atajoMessages = [
@@ -42,8 +43,23 @@ class RutaDeCenizasGame extends FlameGame with KeyboardEvents, ChangeNotifier {
     "Una grieta estable te permite trepar varios metros de golpe.",
     "La ceniza se asienta y revela un sendero oculto hacia arriba.",
     "Un momento de claridad te permite encontrar un paso rápido.",
-    "Sientes una fuerza renovada en tus piernas. ¡Avanza!"
+    "Sientes una fuerza renovada en tus piernas. ¡Avanza!",
   ];
+
+  final List<String> fragmentosHistoria = [
+    "Día 1. El peso de la mochila no es nada comparado con el frío que sube por mis piernas. La ceniza lo cubre todo, como un manto de olvido.",
+    "Día 4. He perdido el rastro del viejo camino. Otros lo intentaron antes; he visto sus huellas petrificadas. Todos miraban hacia arriba.",
+    "Día 9. El aire sabe a metal y azufre. Dicen que en la cima el cielo es azul, pero ya no recuerdo cómo se ve el color azul.",
+    "He encontrado un zapato de niño medio enterrado. Me pregunto si quien lo llevaba logró ver la luz del sol una última vez.",
+    "La soledad aquí arriba tiene voz. Susurra promesas de descanso, pero si me detengo, la ceniza me convertirá en parte de la montaña.",
+    "Día 15. Mis manos sangran, pero la piedra aquí arriba es distinta. Es más cálida. Estoy cerca del corazón del volcán.",
+    "Vi un destello entre las nubes negras. Un rayo de luz real. Hacía años que no lloraba, pero mis lágrimas se secaron antes de caer.",
+    "Ya no siento mis pies. Camino por inercia. Solo el pensamiento de que él me espera en el refugio me mantiene erguido.",
+    "La pendiente es casi vertical ahora. El viento aúlla como un animal herido. He dejado atrás todo lo que poseía, excepto mi esperanza.",
+    "Si alguien encuentra este diario... no mires hacia abajo. La luz está ahí, a solo unos pasos. No te detengas."
+  ];
+
+  int currentHistoryIndex = 0;
 
   final math.Random _rand = math.Random();
   Color backgroundColor() => Colors.black;
@@ -61,7 +77,8 @@ class RutaDeCenizasGame extends FlameGame with KeyboardEvents, ChangeNotifier {
         index: data.index,
         surfaceColor: data.surfaceColor,
       );
-      tile.priority = 100 - data.row; // Closer rows (lower index) rendered on top
+      tile.priority =
+          100 - data.row; // Closer rows (lower index) rendered on top
       tiles.add(tile);
       add(tile);
     }
@@ -70,31 +87,37 @@ class RutaDeCenizasGame extends FlameGame with KeyboardEvents, ChangeNotifier {
     _getTileAtIndex(1)?.isRevealed = true;
 
     add(PlayerComponent()..priority = 200); // Above tiles
-    dice.position = Vector2(20, canvasSize.y - 80);
+    dice.position = Vector2((canvasSize.x - 130) / 2, canvasSize.y - 80);
     dice.priority = 400; // Above everything visual
     add(dice);
-    
+
+    // Add Sun Ray Overlay
+    add(SunRayOverlay()..priority = 350);
+
     // Add Ash Fog Overlay
     add(AshFogOverlay()..priority = 300); // Above player and tiles
-    
+
     // Add MiniMap
     add(MiniMapComponent()..priority = 500); // Top layer HUD
-    
-    // Add AguanteBar
-    add(AguanteBarComponent()..priority = 500); // Top layer HUD
-    
+
+    // Add IntegridadBar
+    add(IntegridadBarComponent()..priority = 500); // Top layer HUD
+
     // Configurar e intentar cargar audios
     try {
       await FlameAudio.audioCache.loadAll([
         'ambient.mp3',
-        'move.wav',
-        'fall.wav',
-        'shortcut.wav'
+        'move.mp3',
+        'fall.mp3',
+        'shortcut.mp3',
+        'paper_sound.mp3',
       ]);
       FlameAudio.bgm.initialize();
-      FlameAudio.bgm.play('ambient.mp3', volume: 0.5);
+      FlameAudio.bgm.play('ambient.mp3', volume: 0.6);
     } catch (e) {
-      print('Aviso: No se pudieron cargar o reproducir los audios. Asegúrate de añadirlos en assets/audio/. Error: $e');
+      print(
+        'Aviso: No se pudieron cargar o reproducir los audios. Asegúrate de añadirlos en assets/audio/. Error: $e',
+      );
     }
   }
 
@@ -108,25 +131,29 @@ class RutaDeCenizasGame extends FlameGame with KeyboardEvents, ChangeNotifier {
 
   void rollAndMove() {
     if (dice.isRolling || isMoving) return;
-    
+
     print("Iniciando rollAndMove. Esperando evento: $waitingForEventRoll");
     eventMessage = null;
-    
+
     // Use 2 dice for events, 1 die for normal movement
     dice.roll(diceCount: waitingForEventRoll ? 2 : 1);
-    
+
     notifyListeners();
 
     Future.delayed(const Duration(milliseconds: 700), () {
-      final total = waitingForEventRoll ? (dice.value1 + dice.value2) : dice.value1;
-      
+      final total = waitingForEventRoll
+          ? (dice.value1 + dice.value2)
+          : dice.value1;
+
       if (waitingForEventRoll) {
         waitingForEventRoll = false;
         currentEventType = null; // Reset type
         eventMessage = null;
-        
+
         final currentTile = _getTileAtIndex(playerState.currentIndex);
-        print("Resolviendo evento en casilla ${currentTile?.index} (Tipo: ${currentTile?.type})");
+        print(
+          "Resolviendo evento en casilla ${currentTile?.index} (Tipo: ${currentTile?.type})",
+        );
         if (currentTile?.type == TileType.barranco) {
           print("Barranco detectado: retrocediendo $total casillas");
           _processMovement(-total);
@@ -136,7 +163,9 @@ class RutaDeCenizasGame extends FlameGame with KeyboardEvents, ChangeNotifier {
         }
       } else {
         print("Movimiento normal: avanzando $total casillas");
-        try { FlameAudio.play('move.wav'); } catch (e) {}
+        try {
+          FlameAudio.play('move.mp3');
+        } catch (e) {}
         _processMovement(total);
       }
       notifyListeners();
@@ -157,12 +186,14 @@ class RutaDeCenizasGame extends FlameGame with KeyboardEvents, ChangeNotifier {
     if (targetIndex < 1) targetIndex = 1;
     if (targetIndex > tiles.length) targetIndex = tiles.length;
 
-    print("Moviendo de ${playerState.currentIndex} a $targetIndex (Pasos: $steps)");
+    print(
+      "Moviendo de ${playerState.currentIndex} a $targetIndex (Pasos: $steps)",
+    );
     final targetTile = _getTileAtIndex(targetIndex);
     if (targetTile != null) {
       playerState.currentIndex = targetIndex;
       // targetTile.row will be used by the smooth follow in update()
-      
+
       notifyListeners();
     } else {
       isMoving = false;
@@ -184,12 +215,12 @@ class RutaDeCenizasGame extends FlameGame with KeyboardEvents, ChangeNotifier {
     final currentTile = _getTileAtIndex(playerState.currentIndex);
     if (currentTile != null) {
       currentTile.isRevealed = true;
-      
+
       // Update dice count visually for the next turn
       if (currentTile.type == TileType.normal) {
         dice.numDice = 1;
       }
-      
+
       _resolveTileEffect(currentTile);
     }
   }
@@ -199,10 +230,10 @@ class RutaDeCenizasGame extends FlameGame with KeyboardEvents, ChangeNotifier {
       "No resistes más, un helicóptero vendrá a tu rescate.",
       "Sientes que te desvaneces... la montaña ha sido demasiado dura.",
       "Tus fuerzas se agotan. Debes descender para recuperarte.",
-      "El frío y el cansancio te vencen. Despiertas en la base."
+      "El frío y el cansancio te vencen. Despiertas en la base.",
     ];
     eventMessage = gameOverMessages[_rand.nextInt(gameOverMessages.length)];
-    
+
     // Reset after a delay
     Future.delayed(const Duration(seconds: 3), () {
       playerState.reset();
@@ -216,11 +247,12 @@ class RutaDeCenizasGame extends FlameGame with KeyboardEvents, ChangeNotifier {
   void update(double dt) {
     super.update(dt);
     elapsedTime += dt;
-    
+
     // Smooth camera follow based on visual row of the player
     final player = children.whereType<PlayerComponent>().firstOrNull;
     if (player != null) {
-      final targetRow = player.visualRow - 1.0; // Offset camera to show some rows below
+      final targetRow =
+          player.visualRow - 1.0; // Offset camera to show some rows below
       if ((cameraRowOffset - targetRow).abs() > 0.01) {
         cameraRowOffset = lerp(5 * dt, cameraRowOffset, targetRow);
       }
@@ -235,7 +267,9 @@ class RutaDeCenizasGame extends FlameGame with KeyboardEvents, ChangeNotifier {
         overlays.add('InventoryPrompt');
         return;
       }
-      try { FlameAudio.play('fall.wav'); } catch (e) {}
+      try {
+        FlameAudio.play('fall.mp3');
+      } catch (e) {}
       waitingForEventRoll = true;
       dice.numDice = 2;
       currentEventType = TileType.barranco;
@@ -243,11 +277,27 @@ class RutaDeCenizasGame extends FlameGame with KeyboardEvents, ChangeNotifier {
       notifyListeners();
     } else if (tile.type == TileType.atajo) {
       print("¡ATAJO DETECTADO! Activando evento.");
-      try { FlameAudio.play('shortcut.wav'); } catch (e) {}
+      try {
+        FlameAudio.play('shortcut.mp3');
+      } catch (e) {}
       waitingForEventRoll = true;
       dice.numDice = 2;
       currentEventType = TileType.atajo;
       eventMessage = _atajoMessages[_rand.nextInt(_atajoMessages.length)];
+      notifyListeners();
+    } else if (tile.type == TileType.historia) {
+      print("¡FRAGMENTO ENCONTRADO! Activando evento.");
+      try {
+        FlameAudio.play('paper_sound.mp3');
+      } catch (e) {}
+      waitingForEventRoll = true;
+      dice.numDice = 1;
+      currentEventType = TileType.historia;
+      eventMessage = fragmentosHistoria[currentHistoryIndex];
+      if (currentHistoryIndex < fragmentosHistoria.length - 1) {
+        currentHistoryIndex++;
+      }
+      playerState.health = (playerState.health + 5).clamp(0, 100);
       notifyListeners();
     }
   }
@@ -266,8 +316,12 @@ class RutaDeCenizasGame extends FlameGame with KeyboardEvents, ChangeNotifier {
   }
 
   @override
-  KeyEventResult onKeyEvent(KeyEvent event, Set<LogicalKeyboardKey> keysPressed) {
-    if (event is KeyDownEvent && keysPressed.contains(LogicalKeyboardKey.space)) {
+  KeyEventResult onKeyEvent(
+    KeyEvent event,
+    Set<LogicalKeyboardKey> keysPressed,
+  ) {
+    if (event is KeyDownEvent &&
+        keysPressed.contains(LogicalKeyboardKey.space)) {
       rollAndMove();
       return KeyEventResult.handled;
     }
@@ -276,7 +330,10 @@ class RutaDeCenizasGame extends FlameGame with KeyboardEvents, ChangeNotifier {
 }
 
 class AshFogOverlay extends Component with HasGameReference<RutaDeCenizasGame> {
-  final List<_AshParticle> _particles = List.generate(150, (_) => _AshParticle());
+  final List<_AshParticle> _particles = List.generate(
+    150,
+    (_) => _AshParticle(),
+  );
 
   @override
   void update(double dt) {
@@ -288,14 +345,24 @@ class AshFogOverlay extends Component with HasGameReference<RutaDeCenizasGame> {
   @override
   void render(Canvas canvas) {
     final size = game.canvasSize.toSize();
-    
+
     for (var p in _particles) {
       p.render(canvas);
     }
 
     // Fog starts clearing at current row and becomes opaque at row + 3
-    final playerY = PerspectiveUtils.project(game.cameraRowOffset, 0, size, cameraRowOffset: game.cameraRowOffset).dy;
-    final limitY = PerspectiveUtils.project(game.cameraRowOffset + 3, 0, size, cameraRowOffset: game.cameraRowOffset).dy;
+    final playerY = PerspectiveUtils.project(
+      game.cameraRowOffset,
+      0,
+      size,
+      cameraRowOffset: game.cameraRowOffset,
+    ).dy;
+    final limitY = PerspectiveUtils.project(
+      game.cameraRowOffset + 3,
+      0,
+      size,
+      cameraRowOffset: game.cameraRowOffset,
+    ).dy;
 
     double stop1 = (playerY / size.height).clamp(0.0, 1.0);
     double stop2 = (limitY / size.height).clamp(0.0, 1.0);
@@ -307,9 +374,9 @@ class AshFogOverlay extends Component with HasGameReference<RutaDeCenizasGame> {
         colors: [
           Colors.transparent,
           Colors.transparent,
-          Colors.black.withValues(alpha: 0.95), // Denser
-          Colors.black,
-          Colors.black,
+          Colors.black.withValues(alpha: 0.82), // Softer fog
+          Colors.black.withValues(alpha: 0.95),
+          Colors.black.withValues(alpha: 0.98),
         ],
         stops: [0.0, 1.0 - stop1, 1.0 - stop2, 0.95, 1.0],
       ).createShader(Rect.fromLTWH(0, 0, size.width, size.height));
@@ -355,7 +422,8 @@ class _AshParticle {
   }
 }
 
-class MiniMapComponent extends Component with HasGameReference<RutaDeCenizasGame> {
+class MiniMapComponent extends Component
+    with HasGameReference<RutaDeCenizasGame> {
   @override
   void render(Canvas canvas) {
     final size = game.canvasSize;
@@ -367,24 +435,31 @@ class MiniMapComponent extends Component with HasGameReference<RutaDeCenizasGame
     // Background bar (mountain outline)
     final bgPaint = Paint()..color = Colors.white.withValues(alpha: 0.1);
     canvas.drawRRect(
-      RRect.fromRectAndRadius(Rect.fromLTWH(mapX, mapY, mapWidth, mapHeight), const Radius.circular(5)),
+      RRect.fromRectAndRadius(
+        Rect.fromLTWH(mapX, mapY, mapWidth, mapHeight),
+        const Radius.circular(5),
+      ),
       bgPaint,
     );
 
     // Player marker
-    final playerRow = game.cameraRowOffset; // Use camera offset as smooth reference
+    final playerRow =
+        game.cameraRowOffset; // Use camera offset as smooth reference
     final totalRows = 16.0;
     final progress = (playerRow / (totalRows - 1)).clamp(0.0, 1.0);
-    
+
     final markerY = mapY + mapHeight - (progress * mapHeight);
     final markerPaint = Paint()..color = const Color(0xFFB22222);
     canvas.drawCircle(Offset(mapX + mapWidth / 2, markerY), 4, markerPaint);
-    
+
     // Top indicator (Cima)
     final textPainter = TextPainter(
       text: TextSpan(
         text: 'CIMA',
-        style: TextStyle(color: Colors.white.withValues(alpha: 0.5), fontSize: 10),
+        style: TextStyle(
+          color: Colors.white.withValues(alpha: 0.5),
+          fontSize: 10,
+        ),
       ),
       textDirection: TextDirection.ltr,
     );
@@ -393,7 +468,8 @@ class MiniMapComponent extends Component with HasGameReference<RutaDeCenizasGame
   }
 }
 
-class AguanteBarComponent extends Component with HasGameReference<RutaDeCenizasGame> {
+class IntegridadBarComponent extends Component
+    with HasGameReference<RutaDeCenizasGame> {
   @override
   void render(Canvas canvas) {
     final size = game.canvasSize;
@@ -405,32 +481,87 @@ class AguanteBarComponent extends Component with HasGameReference<RutaDeCenizasG
     // Background bar
     final bgPaint = Paint()..color = Colors.white.withValues(alpha: 0.1);
     canvas.drawRRect(
-      RRect.fromRectAndRadius(Rect.fromLTWH(barX, barY, barWidth, barHeight), const Radius.circular(5)),
+      RRect.fromRectAndRadius(
+        Rect.fromLTWH(barX, barY, barWidth, barHeight),
+        const Radius.circular(5),
+      ),
       bgPaint,
     );
 
     // Health (Aguante) Fill
     final health = game.playerState.health;
     final fillHeight = (health / 100.0) * barHeight;
-    
-    final fillPaint = Paint()..color = const Color(0xFF2E8B57); // Sea Green / Forest for stamina
+
+    final fillPaint = Paint()
+      ..color = const Color(0xFF2E8B57); // Sea Green / Forest for stamina
     canvas.drawRRect(
       RRect.fromRectAndRadius(
-        Rect.fromLTWH(barX, barY + barHeight - fillHeight, barWidth, fillHeight), 
-        const Radius.circular(5)
+        Rect.fromLTWH(
+          barX,
+          barY + barHeight - fillHeight,
+          barWidth,
+          fillHeight,
+        ),
+        const Radius.circular(5),
       ),
       fillPaint,
     );
-    
-    // Indicator (AGUANTE)
+
+    // Indicator (INTEGRIDAD)
     final textPainter = TextPainter(
       text: TextSpan(
-        text: 'AGUANTE',
-        style: TextStyle(color: Colors.white.withValues(alpha: 0.5), fontSize: 10),
+        text: 'INTEGRIDAD',
+        style: TextStyle(
+          color: Colors.white.withValues(alpha: 0.5),
+          fontSize: 10,
+        ),
       ),
       textDirection: TextDirection.ltr,
     );
     textPainter.layout();
     textPainter.paint(canvas, Offset(barX - 45, barY - 15));
+  }
+}
+
+class SunRayOverlay extends Component with HasGameReference<RutaDeCenizasGame> {
+  final math.Random _rand = math.Random();
+  double _timer = 0;
+  double _opacity = 0;
+  bool _isFlashing = false;
+
+  @override
+  void update(double dt) {
+    if (!_isFlashing) {
+      _timer += dt;
+      if (_timer > 5.0 && _rand.nextDouble() < 0.01) { // Rare event (approx every 5+ secs, low chance)
+        _isFlashing = true;
+        _opacity = 0.15 + _rand.nextDouble() * 0.1; // 0.15 to 0.25 opacity
+        _timer = 0;
+      }
+    } else {
+      _opacity -= dt * 0.15; // Fade out slowly
+      if (_opacity <= 0) {
+        _opacity = 0;
+        _isFlashing = false;
+      }
+    }
+  }
+
+  @override
+  void render(Canvas canvas) {
+    if (_opacity > 0) {
+      final size = game.canvasSize.toSize();
+      final paint = Paint()
+        ..shader = LinearGradient(
+          begin: Alignment.topCenter,
+          end: Alignment.bottomCenter,
+          colors: [
+            Colors.white.withValues(alpha: _opacity),
+            Colors.white.withValues(alpha: 0.0),
+          ],
+        ).createShader(Rect.fromLTWH(0, 0, size.width, size.height * 0.5));
+      
+      canvas.drawRect(Rect.fromLTWH(0, 0, size.width, size.height * 0.5), paint);
+    }
   }
 }
