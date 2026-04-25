@@ -2,6 +2,7 @@ import 'dart:math' as math;
 import 'package:flame/game.dart';
 import 'package:flame/components.dart';
 import 'package:flame/events.dart';
+import 'package:flame_audio/flame_audio.dart' hide PlayerState;
 import 'package:flutter/material.dart' hide Path; // Avoid conflict with dart:ui if any
 import 'package:flutter/services.dart';
 import 'components/tablero_tile.dart';
@@ -81,6 +82,20 @@ class RutaDeCenizasGame extends FlameGame with KeyboardEvents, ChangeNotifier {
     
     // Add AguanteBar
     add(AguanteBarComponent()..priority = 500); // Top layer HUD
+    
+    // Configurar e intentar cargar audios
+    try {
+      await FlameAudio.audioCache.loadAll([
+        'ambient.mp3',
+        'move.wav',
+        'fall.wav',
+        'shortcut.wav'
+      ]);
+      FlameAudio.bgm.initialize();
+      FlameAudio.bgm.play('ambient.mp3', volume: 0.5);
+    } catch (e) {
+      print('Aviso: No se pudieron cargar o reproducir los audios. Asegúrate de añadirlos en assets/audio/. Error: $e');
+    }
   }
 
   TableroTile? _getTileAtIndex(int index) {
@@ -121,6 +136,7 @@ class RutaDeCenizasGame extends FlameGame with KeyboardEvents, ChangeNotifier {
         }
       } else {
         print("Movimiento normal: avanzando $total casillas");
+        try { FlameAudio.play('move.wav'); } catch (e) {}
         _processMovement(total);
       }
       notifyListeners();
@@ -219,6 +235,7 @@ class RutaDeCenizasGame extends FlameGame with KeyboardEvents, ChangeNotifier {
         overlays.add('InventoryPrompt');
         return;
       }
+      try { FlameAudio.play('fall.wav'); } catch (e) {}
       waitingForEventRoll = true;
       dice.numDice = 2;
       currentEventType = TileType.barranco;
@@ -226,6 +243,7 @@ class RutaDeCenizasGame extends FlameGame with KeyboardEvents, ChangeNotifier {
       notifyListeners();
     } else if (tile.type == TileType.atajo) {
       print("¡ATAJO DETECTADO! Activando evento.");
+      try { FlameAudio.play('shortcut.wav'); } catch (e) {}
       waitingForEventRoll = true;
       dice.numDice = 2;
       currentEventType = TileType.atajo;
