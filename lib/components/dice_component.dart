@@ -55,8 +55,8 @@ class DiceComponent extends PositionComponent with TapCallbacks, HasGameReferenc
         ..color = Colors.yellow.withValues(alpha: 0.15 + (sin(game.elapsedTime * 5).abs() * 0.2))
         ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 12);
       
-      canvas.drawRRect(RRect.fromRectAndRadius(Rect.fromLTWH(0, 0, 50, 50).inflate(4), const Radius.circular(10)), glowPaint);
       if (showTwoDice) {
+        canvas.drawRRect(RRect.fromRectAndRadius(Rect.fromLTWH(0, 0, 50, 50).inflate(4), const Radius.circular(10)), glowPaint);
         canvas.drawRRect(RRect.fromRectAndRadius(Rect.fromLTWH(70, 0, 50, 50).inflate(4), const Radius.circular(10)), glowPaint);
       } else {
         canvas.drawRRect(RRect.fromRectAndRadius(Rect.fromLTWH(40, 0, 50, 50).inflate(4), const Radius.circular(10)), glowPaint);

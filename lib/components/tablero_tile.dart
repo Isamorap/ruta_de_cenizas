@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flame/components.dart';
 import '../ruta_de_cenizas_game.dart';
 import '../models/tile_type.dart';
+import '../models/item_type.dart';
 import '../utils/perspective_utils.dart';
 
 class TableroTile extends Component with HasGameReference<RutaDeCenizasGame> {
@@ -10,8 +11,10 @@ class TableroTile extends Component with HasGameReference<RutaDeCenizasGame> {
   final TileType type;
   final int index;
   final Color surfaceColor;
+  final ItemType? item;
   bool isRevealed = false;
   bool isVisited = false;
+  bool itemCollected = false;
   final double blockHeight = 40.0;
 
   TableroTile({
@@ -20,6 +23,7 @@ class TableroTile extends Component with HasGameReference<RutaDeCenizasGame> {
     required this.type,
     required this.index,
     required this.surfaceColor,
+    this.item,
     this.isRevealed = false,
   });
 
@@ -103,6 +107,52 @@ class TableroTile extends Component with HasGameReference<RutaDeCenizasGame> {
     if (isVisited) {
       _drawIndex(canvas, p1, p2, p3, p4);
     }
+
+    if (isRevealed && type == TileType.consumible && !itemCollected && item != null) {
+      _drawItemIcon(canvas, p1, p2, p3, p4);
+    }
+  }
+
+  void _drawItemIcon(Canvas canvas, Offset p1, Offset p2, Offset p3, Offset p4) {
+    final centerX = (p1.dx + p2.dx + p3.dx + p4.dx) / 4;
+    final centerY = (p1.dy + p2.dy + p3.dy + p4.dy) / 4;
+
+    IconData icon;
+    Color color;
+
+    switch (item!) {
+      case ItemType.zapatosDeEscalada:
+        icon = Icons.hiking;
+        color = const Color(0xFF8B4513); // Brown
+        break;
+      case ItemType.lazoDelMalvado:
+        icon = Icons.all_inclusive; // representing lasso
+        color = const Color(0xFF8A2BE2); // Purple
+        break;
+      case ItemType.voluntadDeLosAntiguos:
+        icon = Icons.shield;
+        color = const Color(0xFFFFD700); // Gold
+        break;
+    }
+
+    // Paint background circle
+    canvas.drawCircle(Offset(centerX, centerY), 12, Paint()..color = Colors.white.withValues(alpha: 0.8));
+    canvas.drawCircle(Offset(centerX, centerY), 12, Paint()..color = color..style = PaintingStyle.stroke..strokeWidth = 2);
+
+    // Draw icon using text painter since it's an IconData
+    final iconString = String.fromCharCode(icon.codePoint);
+    final span = TextSpan(
+      text: iconString,
+      style: TextStyle(
+        fontFamily: icon.fontFamily,
+        package: icon.fontPackage,
+        fontSize: 16,
+        color: color,
+      ),
+    );
+    final tp = TextPainter(text: span, textDirection: TextDirection.ltr);
+    tp.layout();
+    tp.paint(canvas, Offset(centerX - tp.width / 2, centerY - tp.height / 2));
   }
 
   void _drawIndex(Canvas canvas, Offset p1, Offset p2, Offset p3, Offset p4) {
@@ -151,6 +201,8 @@ class TableroTile extends Component with HasGameReference<RutaDeCenizasGame> {
         return const Color(0xFFC0C0C0);
       case TileType.historia:
         return const Color(0xFFDAA520); // Amber/Golden for history
+      case TileType.consumible:
+        return const Color(0xFF9370DB); // Medium purple for items
       case TileType.normal:
         return surfaceColor; 
     }

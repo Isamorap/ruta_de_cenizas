@@ -2,14 +2,20 @@ import 'package:flame/components.dart';
 import 'package:flutter/material.dart';
 import '../ruta_de_cenizas_game.dart';
 import '../utils/perspective_utils.dart';
+import '../models/player_state.dart';
+import '../models/character_data.dart';
 
 class PlayerComponent extends Component with HasGameReference<RutaDeCenizasGame> {
+  final PlayerState playerState;
+  
   Vector2? _visualPos;
   double _visualScale = 1.0;
   final List<int> _moveQueue = [];
   int _currentPathIndex = -1;
   double _moveCooldown = 0;
   final List<_DustParticle> _dust = [];
+
+  PlayerComponent({required this.playerState});
 
   double get visualRow {
     final tile = game.tiles.firstWhere((t) => t.index == _currentPathIndex, orElse: () => game.tiles.first);
@@ -19,13 +25,10 @@ class PlayerComponent extends Component with HasGameReference<RutaDeCenizasGame>
   @override
   void update(double dt) {
     super.update(dt);
-    final state = game.playerState;
+    final state = playerState;
 
     // Handle movement queue
     if (_moveQueue.isEmpty && _currentPathIndex != state.currentIndex) {
-      // Something changed externally (e.g. initial teleport or event)
-      // For now, if it's a jump, we'll just teleport or queue the path
-      // If the difference is small, queue the path
       int diff = state.currentIndex - (_currentPathIndex == -1 ? state.currentIndex : _currentPathIndex);
       if (diff.abs() > 0 && diff.abs() <= 12) {
         int sign = diff.sign;
@@ -41,15 +44,17 @@ class PlayerComponent extends Component with HasGameReference<RutaDeCenizasGame>
       _moveCooldown -= dt;
       if (_moveCooldown <= 0) {
         _currentPathIndex = _moveQueue.removeAt(0);
-        _moveCooldown = 0.2; // Time per tile
+        _moveCooldown = 0.4; // Time per tile
         
         // Mark as visited
         game.tiles.firstWhere((t) => t.index == _currentPathIndex).isVisited = true;
-        // User said "solo cuando aterrice", but for animation it looks better if they reveal.
-        // I'll stick to reveal only on landing as requested previously.
+        
         if (_moveQueue.isEmpty) {
           game.tiles.firstWhere((t) => t.index == _currentPathIndex).isRevealed = true;
-          game.onPlayerMovementFinished();
+          // Only trigger event if this is the CURRENT player
+          if (game.players[game.currentPlayerIndex] == playerState) {
+            game.onPlayerMovementFinished();
+          }
         }
       }
     } else if (_currentPathIndex == -1) {
@@ -60,59 +65,99 @@ class PlayerComponent extends Component with HasGameReference<RutaDeCenizasGame>
     final screenSize = game.canvasSize.toSize();
     final offset = game.cameraRowOffset;
     final targetTile = game.tiles.firstWhere((t) => t.index == _currentPathIndex);
-    final targetPos = PerspectiveUtils.project(targetTile.row.toDouble(), targetTile.col, screenSize, cameraRowOffset: offset);
+    
+    // Add a slight offset based on player index to avoid stacking exactly on top of each other
+    int pIndex = game.players.indexOf(playerState);
+    double colOffset = targetTile.col;
+    if (pIndex == 0) colOffset -= 0.2;
+    if (pIndex == 1) colOffset += 0.2;
+    if (pIndex == 2) colOffset -= 0.1;
+    if (pIndex == 3) colOffset += 0.1;
+
+    final targetPos = PerspectiveUtils.project(targetTile.row.toDouble(), colOffset, screenSize, cameraRowOffset: offset);
     final targetScale = PerspectiveUtils.getScale(targetTile.row.toDouble(), cameraRowOffset: offset);
 
     if (_visualPos == null) {
       _visualPos = Vector2(targetPos.dx, targetPos.dy);
       _visualScale = targetScale;
     } else {
-      // Smooth interpolation
       double lerpFactor = 10 * dt;
-      _visualPos!.x = lerp(lerpFactor, _visualPos!.x, targetPos.dx);
-      _visualPos!.y = lerp(lerpFactor, _visualPos!.y, targetPos.dy);
-      _visualScale = lerp(lerpFactor, _visualScale, targetScale);
+      _visualPos!.x = game.lerp(lerpFactor, _visualPos!.x, targetPos.dx);
+      _visualPos!.y = game.lerp(lerpFactor, _visualPos!.y, targetPos.dy);
+      _visualScale = game.lerp(lerpFactor, _visualScale, targetScale);
       
-      // Spawn dust if moving
       if (_moveQueue.isNotEmpty || _moveCooldown > 0) {
         _dust.add(_DustParticle(Offset(_visualPos!.x, _visualPos!.y)));
       }
     }
     
-    // Update dust
     for (final d in _dust) {
       d.update(dt);
     }
     _dust.removeWhere((d) => d.life <= 0);
   }
 
-  double lerp(double t, double a, double b) => a + (b - a) * t.clamp(0.0, 1.0);
-
   @override
   void render(Canvas canvas) {
     if (_visualPos == null) return;
-    
-    // Render dust first
+
     for (final d in _dust) {
       d.render(canvas);
     }
 
-    final paint = Paint()..color = const Color(0xFF1A1A1A);
+    final char = characterById(playerState.characterId);
+    final size = 32.0 * _visualScale;
+
+    // Sombra de fondo
+    final shadowPaint = Paint()
+      ..color = Colors.black.withValues(alpha: 0.5)
+      ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 6);
+    canvas.drawCircle(
+      Offset(_visualPos!.x, _visualPos!.y - size * 0.6),
+      size * 0.65,
+      shadowPaint,
+    );
+
+    // Círculo de fondo con el color del personaje
+    final bgPaint = Paint()
+      ..color = char.color.withValues(alpha: 0.25);
+    canvas.drawCircle(
+      Offset(_visualPos!.x, _visualPos!.y - size * 0.6),
+      size * 0.65,
+      bgPaint,
+    );
+
+    // Borde del círculo
     final borderPaint = Paint()
-      ..color = const Color(0xFFC0C0C0)
+      ..color = char.color
       ..style = PaintingStyle.stroke
-      ..strokeWidth = 2;
-    
-    final size = 30.0 * _visualScale;
+      ..strokeWidth = 1.5 * _visualScale;
+    canvas.drawCircle(
+      Offset(_visualPos!.x, _visualPos!.y - size * 0.6),
+      size * 0.65,
+      borderPaint,
+    );
 
-    final path = Path()
-      ..moveTo(_visualPos!.x, _visualPos!.y - size)
-      ..lineTo(_visualPos!.x - size / 2, _visualPos!.y)
-      ..lineTo(_visualPos!.x + size / 2, _visualPos!.y)
-      ..close();
-
-    canvas.drawPath(path, paint);
-    canvas.drawPath(path, borderPaint);
+    // Ícono del personaje
+    final iconString = String.fromCharCode(char.icon.codePoint);
+    final iconSpan = TextSpan(
+      text: iconString,
+      style: TextStyle(
+        fontFamily: char.icon.fontFamily,
+        package: char.icon.fontPackage,
+        fontSize: size * 0.9,
+        color: char.color,
+      ),
+    );
+    final tp = TextPainter(text: iconSpan, textDirection: TextDirection.ltr);
+    tp.layout();
+    tp.paint(
+      canvas,
+      Offset(
+        _visualPos!.x - tp.width / 2,
+        _visualPos!.y - size * 0.6 - tp.height / 2,
+      ),
+    );
   }
 }
 

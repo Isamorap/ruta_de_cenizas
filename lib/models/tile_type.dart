@@ -4,4 +4,5 @@ enum TileType {
   atajo,
   suceso,
   historia,
+  consumible,
 }

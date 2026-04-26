@@ -8,6 +8,7 @@ import 'package:flutter/material.dart'
 import 'package:flutter/services.dart';
 import 'components/tablero_tile.dart';
 import 'models/tile_type.dart';
+import 'models/item_type.dart';
 import 'utils/perspective_utils.dart';
 import 'logic/board_logic.dart';
 import 'models/player_state.dart';
@@ -15,7 +16,12 @@ import 'components/dice_component.dart';
 import 'components/player_component.dart';
 
 class RutaDeCenizasGame extends FlameGame with KeyboardEvents, ChangeNotifier {
-  final PlayerState playerState = PlayerState();
+  List<PlayerState> players = [];
+  int currentPlayerIndex = 0;
+  bool isGameStarted = false;
+
+  PlayerState get currentPlayer => players[currentPlayerIndex];
+
   DiceComponent dice = DiceComponent();
   final List<TableroTile> tiles = [];
   double cameraRowOffset = 0.0;
@@ -76,6 +82,7 @@ class RutaDeCenizasGame extends FlameGame with KeyboardEvents, ChangeNotifier {
         type: data.type,
         index: data.index,
         surfaceColor: data.surfaceColor,
+        item: data.item,
       );
       tile.priority =
           100 - data.row; // Closer rows (lower index) rendered on top
@@ -86,24 +93,16 @@ class RutaDeCenizasGame extends FlameGame with KeyboardEvents, ChangeNotifier {
     // Reveal starting tile
     _getTileAtIndex(1)?.isRevealed = true;
 
-    add(PlayerComponent()..priority = 200); // Above tiles
     dice.position = Vector2((canvasSize.x - 130) / 2, canvasSize.y - 80);
     dice.priority = 400; // Above everything visual
     add(dice);
 
-    // Add Sun Ray Overlay
     add(SunRayOverlay()..priority = 350);
-
-    // Add Ash Fog Overlay
     add(AshFogOverlay()..priority = 300); // Above player and tiles
 
-    // Add MiniMap
     add(MiniMapComponent()..priority = 500); // Top layer HUD
-
-    // Add IntegridadBar
     add(IntegridadBarComponent()..priority = 500); // Top layer HUD
 
-    // Configurar e intentar cargar audios
     try {
       await FlameAudio.audioCache.loadAll([
         'ambient.mp3',
@@ -115,10 +114,29 @@ class RutaDeCenizasGame extends FlameGame with KeyboardEvents, ChangeNotifier {
       FlameAudio.bgm.initialize();
       FlameAudio.bgm.play('ambient.mp3', volume: 0.6);
     } catch (e) {
-      print(
-        'Aviso: No se pudieron cargar o reproducir los audios. Asegúrate de añadirlos en assets/audio/. Error: $e',
-      );
+      print('Aviso: Audios no cargados. Error: $e');
     }
+  }
+
+  void startGame(List<PlayerState> newPlayers) {
+    // Limpiar jugadores previos si existen
+    children.whereType<PlayerComponent>().forEach((p) => p.removeFromParent());
+    
+    players = newPlayers;
+    currentPlayerIndex = 0;
+    isGameStarted = true;
+    isMoving = false;
+    waitingForEventRoll = false;
+    currentEventType = null;
+    eventMessage = null;
+    cameraRowOffset = 0.0;
+
+    for (var player in players) {
+      player.reset();
+      add(PlayerComponent(playerState: player)..priority = 200);
+    }
+    
+    notifyListeners();
   }
 
   TableroTile? _getTileAtIndex(int index) {
@@ -130,42 +148,36 @@ class RutaDeCenizasGame extends FlameGame with KeyboardEvents, ChangeNotifier {
   }
 
   void rollAndMove() {
-    if (dice.isRolling || isMoving) return;
+    if (!isGameStarted || dice.isRolling || isMoving) return;
 
-    print("Iniciando rollAndMove. Esperando evento: $waitingForEventRoll");
+    print("Iniciando rollAndMove de ${currentPlayer.name}. Esperando evento: $waitingForEventRoll");
     eventMessage = null;
 
-    // Use 2 dice for events, 1 die for normal movement
-    dice.roll(diceCount: waitingForEventRoll ? 2 : 1);
+    final isTwoDiceEvent = waitingForEventRoll && currentEventType != TileType.historia && currentEventType != TileType.consumible;
+    dice.roll(diceCount: isTwoDiceEvent ? 2 : 1);
 
     notifyListeners();
 
     Future.delayed(const Duration(milliseconds: 700), () {
-      final total = waitingForEventRoll
+      final total = isTwoDiceEvent
           ? (dice.value1 + dice.value2)
           : dice.value1;
 
       if (waitingForEventRoll) {
         waitingForEventRoll = false;
-        currentEventType = null; // Reset type
+        currentEventType = null;
         eventMessage = null;
 
-        final currentTile = _getTileAtIndex(playerState.currentIndex);
-        print(
-          "Resolviendo evento en casilla ${currentTile?.index} (Tipo: ${currentTile?.type})",
-        );
+        final currentTile = _getTileAtIndex(currentPlayer.currentIndex);
         if (currentTile?.type == TileType.barranco) {
-          print("Barranco detectado: retrocediendo $total casillas");
           _processMovement(-total);
+        } else if (currentTile?.type == TileType.atajo) {
+          _processMovement(total);
         } else {
-          print("Atajo detectado: avanzando $total casillas");
           _processMovement(total);
         }
       } else {
-        print("Movimiento normal: avanzando $total casillas");
-        try {
-          FlameAudio.play('move.mp3');
-        } catch (e) {}
+        try { FlameAudio.play('move.mp3'); } catch (_) {}
         _processMovement(total);
       }
       notifyListeners();
@@ -176,27 +188,22 @@ class RutaDeCenizasGame extends FlameGame with KeyboardEvents, ChangeNotifier {
     isMoving = true;
     notifyListeners();
 
-    // Damage on fall: lose 5 HP per step
     if (steps < 0) {
-      playerState.health += (steps * 5); // steps is negative
-      if (playerState.health < 0) playerState.health = 0;
+      currentPlayer.health += (steps * 5); // steps is negative
+      if (currentPlayer.health < 0) currentPlayer.health = 0;
     }
 
-    int targetIndex = playerState.currentIndex + steps;
+    int targetIndex = currentPlayer.currentIndex + steps;
     if (targetIndex < 1) targetIndex = 1;
     if (targetIndex > tiles.length) targetIndex = tiles.length;
 
-    print(
-      "Moviendo de ${playerState.currentIndex} a $targetIndex (Pasos: $steps)",
-    );
     final targetTile = _getTileAtIndex(targetIndex);
     if (targetTile != null) {
-      playerState.currentIndex = targetIndex;
-      // targetTile.row will be used by the smooth follow in update()
-
+      currentPlayer.currentIndex = targetIndex;
       notifyListeners();
     } else {
       isMoving = false;
+      _endTurn();
       notifyListeners();
     }
   }
@@ -205,42 +212,66 @@ class RutaDeCenizasGame extends FlameGame with KeyboardEvents, ChangeNotifier {
     isMoving = false;
     notifyListeners();
 
-    // Check for Game Over (Zero health)
-    if (playerState.health <= 0) {
+    if (currentPlayer.health <= 0) {
       _triggerGameOver();
       return;
     }
 
-    // Resolve tile effect only NOW that the player has physically arrived
-    final currentTile = _getTileAtIndex(playerState.currentIndex);
+    if (currentPlayer.currentIndex == tiles.length) {
+      _triggerWin();
+      return;
+    }
+
+    final currentTile = _getTileAtIndex(currentPlayer.currentIndex);
     if (currentTile != null) {
       currentTile.isRevealed = true;
-
-      // Update dice count visually for the next turn
       if (currentTile.type == TileType.normal) {
         dice.numDice = 1;
+        _endTurn(); // Termina el turno en casilla normal
+      } else {
+        _resolveTileEffect(currentTile);
       }
-
-      _resolveTileEffect(currentTile);
+    } else {
+      _endTurn();
+    }
+  }
+  
+  void _endTurn() {
+    if (!waitingForEventRoll) {
+      currentPlayerIndex = (currentPlayerIndex + 1) % players.length;
+      print("Turno de: ${currentPlayer.name}");
+      notifyListeners();
     }
   }
 
   void _triggerGameOver() {
-    final gameOverMessages = [
-      "No resistes más, un helicóptero vendrá a tu rescate.",
-      "Sientes que te desvaneces... la montaña ha sido demasiado dura.",
-      "Tus fuerzas se agotan. Debes descender para recuperarte.",
-      "El frío y el cansancio te vencen. Despiertas en la base.",
-    ];
-    eventMessage = gameOverMessages[_rand.nextInt(gameOverMessages.length)];
-
-    // Reset after a delay
+    eventMessage = "${currentPlayer.name} ha caído exhausto.";
     Future.delayed(const Duration(seconds: 3), () {
-      playerState.reset();
-      cameraRowOffset = 0;
+      currentPlayer.reset();
       eventMessage = null;
+      _endTurn();
       notifyListeners();
     });
+  }
+
+  void _triggerWin() {
+    eventMessage = "¡${currentPlayer.name.toUpperCase()} HA CONQUISTADO LA CIMA!";
+    Future.delayed(const Duration(seconds: 5), () {
+      returnToMenu();
+    });
+  }
+
+  void returnToMenu() {
+    children.whereType<PlayerComponent>().forEach((p) => p.removeFromParent());
+    isGameStarted = false;
+    players = [];
+    currentPlayerIndex = 0;
+    eventMessage = null;
+    waitingForEventRoll = false;
+    isMoving = false;
+    cameraRowOffset = 0;
+    overlays.add('MainMenuOverlay');
+    notifyListeners();
   }
 
   @override
@@ -248,11 +279,13 @@ class RutaDeCenizasGame extends FlameGame with KeyboardEvents, ChangeNotifier {
     super.update(dt);
     elapsedTime += dt;
 
-    // Smooth camera follow based on visual row of the player
-    final player = children.whereType<PlayerComponent>().firstOrNull;
-    if (player != null) {
-      final targetRow =
-          player.visualRow - 1.0; // Offset camera to show some rows below
+    if (!isGameStarted) return;
+
+    final playerComps = children.whereType<PlayerComponent>();
+    final activePlayerComp = playerComps.where((p) => p.playerState == currentPlayer).firstOrNull;
+    
+    if (activePlayerComp != null) {
+      final targetRow = activePlayerComp.visualRow - 1.0; 
       if ((cameraRowOffset - targetRow).abs() > 0.01) {
         cameraRowOffset = lerp(5 * dt, cameraRowOffset, targetRow);
       }
@@ -263,7 +296,7 @@ class RutaDeCenizasGame extends FlameGame with KeyboardEvents, ChangeNotifier {
 
   void _resolveTileEffect(TableroTile tile) {
     if (tile.type == TileType.barranco) {
-      if (playerState.hasZapatosDeEscalada) {
+      if (currentPlayer.zapatosDeEscaladaCount > 0) {
         overlays.add('InventoryPrompt');
         return;
       }
@@ -276,7 +309,6 @@ class RutaDeCenizasGame extends FlameGame with KeyboardEvents, ChangeNotifier {
       eventMessage = _barrancoMessages[_rand.nextInt(_barrancoMessages.length)];
       notifyListeners();
     } else if (tile.type == TileType.atajo) {
-      print("¡ATAJO DETECTADO! Activando evento.");
       try {
         FlameAudio.play('shortcut.mp3');
       } catch (e) {}
@@ -286,7 +318,6 @@ class RutaDeCenizasGame extends FlameGame with KeyboardEvents, ChangeNotifier {
       eventMessage = _atajoMessages[_rand.nextInt(_atajoMessages.length)];
       notifyListeners();
     } else if (tile.type == TileType.historia) {
-      print("¡FRAGMENTO ENCONTRADO! Activando evento.");
       try {
         FlameAudio.play('paper_sound.mp3');
       } catch (e) {}
@@ -297,14 +328,50 @@ class RutaDeCenizasGame extends FlameGame with KeyboardEvents, ChangeNotifier {
       if (currentHistoryIndex < fragmentosHistoria.length - 1) {
         currentHistoryIndex++;
       }
-      playerState.health = (playerState.health + 5).clamp(0, 100);
+      currentPlayer.health = (currentPlayer.health + 5).clamp(0, 100);
+      notifyListeners();
+    } else if (tile.type == TileType.consumible && !tile.itemCollected && tile.item != null) {
+      tile.itemCollected = true;
+      
+      String itemName = "";
+      switch (tile.item!) {
+        case ItemType.zapatosDeEscalada:
+          if (currentPlayer.zapatosDeEscaladaCount == 0) {
+            currentPlayer.zapatosDeEscaladaCount++;
+          }
+          itemName = "Zapatos de Escalada";
+          break;
+        case ItemType.lazoDelMalvado:
+          if (currentPlayer.lazoDelMalvadoCount == 0) {
+            currentPlayer.lazoDelMalvadoCount++;
+          }
+          itemName = "Lazo del Malvado";
+          break;
+        case ItemType.voluntadDeLosAntiguos:
+          if (currentPlayer.voluntadDeLosAntiguosCount == 0) {
+            currentPlayer.voluntadDeLosAntiguosCount++;
+          }
+          itemName = "Voluntad de los Antiguos";
+          break;
+      }
+
+      final screenSize = canvasSize.toSize();
+      final offset = cameraRowOffset;
+      final startPos = PerspectiveUtils.project(tile.row.toDouble(), tile.col, screenSize, cameraRowOffset: offset);
+      add(ItemPickupAnimation(startPos: startPos, item: tile.item!)..priority = 600);
+
+      waitingForEventRoll = true;
+      dice.numDice = 1;
+      currentEventType = TileType.consumible;
+      eventMessage = "Has encontrado: $itemName.";
       notifyListeners();
     }
   }
 
   void useZapatos() {
-    print("¡Barranco evitado gracias a los Zapatos de Escalada!");
-    // Consume item? User didn't specify, I'll keep it for now.
+    print("¡Barranco evitado!");
+    currentPlayer.zapatosDeEscaladaCount--;
+    _endTurn();
   }
 
   void triggerFall() {
@@ -331,7 +398,7 @@ class RutaDeCenizasGame extends FlameGame with KeyboardEvents, ChangeNotifier {
 
 class AshFogOverlay extends Component with HasGameReference<RutaDeCenizasGame> {
   final List<_AshParticle> _particles = List.generate(
-    150,
+    50,
     (_) => _AshParticle(),
   );
 
@@ -489,7 +556,7 @@ class IntegridadBarComponent extends Component
     );
 
     // Health (Aguante) Fill
-    final health = game.playerState.health;
+    final health = game.isGameStarted ? game.currentPlayer.health : 100.0;
     final fillHeight = (health / 100.0) * barHeight;
 
     final fillPaint = Paint()
@@ -563,5 +630,69 @@ class SunRayOverlay extends Component with HasGameReference<RutaDeCenizasGame> {
       
       canvas.drawRect(Rect.fromLTWH(0, 0, size.width, size.height * 0.5), paint);
     }
+  }
+}
+
+class ItemPickupAnimation extends Component with HasGameReference<RutaDeCenizasGame> {
+  Vector2 pos;
+  final ItemType item;
+  double _life = 1.0;
+  
+  ItemPickupAnimation({required Offset startPos, required this.item})
+      : pos = Vector2(startPos.dx, startPos.dy);
+
+  @override
+  void update(double dt) {
+    _life -= dt * 0.8;
+    // Move towards bottom-right (inventory area)
+    final targetX = game.canvasSize.x - 50;
+    final targetY = game.canvasSize.y - 50;
+    
+    pos.x = game.lerp(5 * dt, pos.x, targetX);
+    pos.y = game.lerp(5 * dt, pos.y, targetY);
+
+    if (_life <= 0) {
+      removeFromParent();
+    }
+  }
+
+  @override
+  void render(Canvas canvas) {
+    if (_life <= 0) return;
+    
+    IconData icon;
+    Color color;
+
+    switch (item) {
+      case ItemType.zapatosDeEscalada:
+        icon = Icons.hiking;
+        color = const Color(0xFF8B4513);
+        break;
+      case ItemType.lazoDelMalvado:
+        icon = Icons.all_inclusive;
+        color = const Color(0xFF8A2BE2);
+        break;
+      case ItemType.voluntadDeLosAntiguos:
+        icon = Icons.shield;
+        color = const Color(0xFFFFD700);
+        break;
+    }
+
+    final alpha = (_life.clamp(0.0, 1.0) * 255).toInt();
+    
+    // Draw icon
+    final iconString = String.fromCharCode(icon.codePoint);
+    final span = TextSpan(
+      text: iconString,
+      style: TextStyle(
+        fontFamily: icon.fontFamily,
+        package: icon.fontPackage,
+        fontSize: 30 * _life, // Scales down as it moves
+        color: color.withAlpha(alpha),
+      ),
+    );
+    final tp = TextPainter(text: span, textDirection: TextDirection.ltr);
+    tp.layout();
+    tp.paint(canvas, Offset(pos.x - tp.width / 2, pos.y - tp.height / 2));
   }
 }
