@@ -454,8 +454,9 @@ class RutaDeCenizasGame extends FlameGame with KeyboardEvents, ChangeNotifier {
       waitingForEventRoll = true;
       dice.numDice = 2;
       currentEventType = TileType.barranco;
+      final msg = _barrancoMessages[_rand.nextInt(_barrancoMessages.length)];
       eventMessage =
-          "¡PELIGRO: BARRANCO!\n\nEl terreno ha cedido bajo tus pies. Solo puedes evitar la caída si tienes 'Zapatos de Escalada' en tu inventario. Si no los tienes (o decides no usarlos), deberás lanzar los dados dobles (2D6) para determinar cuántas casillas retrocedes. Además, perderás integridad por el esfuerzo de no caer al vacío.";
+          "¡PELIGRO: BARRANCO!\n\n$msg\n\nSolo puedes evitar la caída si tienes 'Zapatos de Escalada' en tu inventario. Si no los tienes (o decides no usarlos), deberás lanzar los dados dobles (2D6) para determinar cuántas casillas retrocedes. Además, perderás integridad.";
       notifyListeners();
       overlays.add('EventMessageOverlay');
       _automationBot();
@@ -465,8 +466,9 @@ class RutaDeCenizasGame extends FlameGame with KeyboardEvents, ChangeNotifier {
       waitingForEventRoll = true;
       dice.numDice = 2;
       currentEventType = TileType.atajo;
+      final msg = _atajoMessages[_rand.nextInt(_atajoMessages.length)];
       eventMessage =
-          "¡FORTUNA: ATAJO!\n\nHas encontrado una ruta más directa entre las rocas. Parece arriesgado, pero la suerte favorece a los audaces. Debes lanzar los dados dobles (2D6) para avanzar casillas extra de inmediato.";
+          "¡FORTUNA: ATAJO!\n\n$msg\n\nHas encontrado una ruta más directa entre las rocas. Parece arriesgado, pero la suerte favorece a los audaces. Debes lanzar los dados dobles (2D6) para avanzar casillas extra de inmediato.";
       notifyListeners();
       overlays.add('EventMessageOverlay');
       _automationBot();
