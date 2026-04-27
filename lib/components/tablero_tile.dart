@@ -162,9 +162,9 @@ class TableroTile extends Component with HasGameReference<RutaDeCenizasGame> {
     final span = TextSpan(
       text: index.toString(),
       style: TextStyle(
-        color: Colors.white.withValues(alpha: 0.5),
-        fontSize: 12,
-        fontWeight: FontWeight.bold,
+        color: Colors.white.withValues(alpha: 0.15),
+        fontSize: 10,
+        fontWeight: FontWeight.normal,
       ),
     );
     final tp = TextPainter(

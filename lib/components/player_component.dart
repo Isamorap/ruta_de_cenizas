@@ -41,7 +41,7 @@ class PlayerComponent extends Component with HasGameReference<RutaDeCenizasGame>
     }
 
     if (_moveQueue.isNotEmpty) {
-      _moveCooldown -= dt;
+      _moveCooldown -= dt * state.moveSpeedMultiplier;
       if (_moveCooldown <= 0) {
         _currentPathIndex = _moveQueue.removeAt(0);
         _moveCooldown = 0.4; // Time per tile
@@ -51,6 +51,8 @@ class PlayerComponent extends Component with HasGameReference<RutaDeCenizasGame>
         
         if (_moveQueue.isEmpty) {
           game.tiles.firstWhere((t) => t.index == _currentPathIndex).isRevealed = true;
+          // Restore speed
+          state.moveSpeedMultiplier = 1.0;
           // Only trigger event if this is the CURRENT player
           if (game.players[game.currentPlayerIndex] == playerState) {
             game.onPlayerMovementFinished();
@@ -59,6 +61,14 @@ class PlayerComponent extends Component with HasGameReference<RutaDeCenizasGame>
       }
     } else if (_currentPathIndex == -1) {
       _currentPathIndex = state.currentIndex;
+    }
+
+    // Update dialog timer
+    if (state.currentDialog != null) {
+      state.dialogTimer -= dt;
+      if (state.dialogTimer <= 0) {
+        state.currentDialog = null;
+      }
     }
 
     // Interpolate visual position
@@ -120,7 +130,7 @@ class PlayerComponent extends Component with HasGameReference<RutaDeCenizasGame>
 
     // Círculo de fondo con el color del personaje
     final bgPaint = Paint()
-      ..color = char.color.withValues(alpha: 0.25);
+      ..color = char.color.withValues(alpha: 0.65);
     canvas.drawCircle(
       Offset(_visualPos!.x, _visualPos!.y - size * 0.6),
       size * 0.65,
@@ -131,7 +141,7 @@ class PlayerComponent extends Component with HasGameReference<RutaDeCenizasGame>
     final borderPaint = Paint()
       ..color = char.color
       ..style = PaintingStyle.stroke
-      ..strokeWidth = 1.5 * _visualScale;
+      ..strokeWidth = 2.0 * _visualScale;
     canvas.drawCircle(
       Offset(_visualPos!.x, _visualPos!.y - size * 0.6),
       size * 0.65,
@@ -146,7 +156,7 @@ class PlayerComponent extends Component with HasGameReference<RutaDeCenizasGame>
         fontFamily: char.icon.fontFamily,
         package: char.icon.fontPackage,
         fontSize: size * 0.9,
-        color: char.color,
+        color: Colors.white,
       ),
     );
     final tp = TextPainter(text: iconSpan, textDirection: TextDirection.ltr);
@@ -158,6 +168,47 @@ class PlayerComponent extends Component with HasGameReference<RutaDeCenizasGame>
         _visualPos!.y - size * 0.6 - tp.height / 2,
       ),
     );
+
+    // Render Dialog
+    if (playerState.currentDialog != null) {
+      _renderDialog(canvas, _visualPos!, size);
+    }
+  }
+
+  void _renderDialog(Canvas canvas, Vector2 pos, double charSize) {
+    final textSpan = TextSpan(
+      text: playerState.currentDialog,
+      style: const TextStyle(
+        color: Colors.white,
+        fontSize: 10,
+        fontWeight: FontWeight.bold,
+      ),
+    );
+    final tp = TextPainter(text: textSpan, textDirection: TextDirection.ltr);
+    tp.layout(maxWidth: 150);
+
+    final bubbleRect = RRect.fromRectAndRadius(
+      Rect.fromLTWH(
+        pos.x - tp.width / 2 - 10,
+        pos.y - charSize - tp.height - 25,
+        tp.width + 20,
+        tp.height + 15,
+      ),
+      const Radius.circular(8),
+    );
+
+    // Bubble background
+    canvas.drawRRect(bubbleRect, Paint()..color = Colors.black.withValues(alpha: 0.8));
+    canvas.drawRRect(bubbleRect, Paint()..color = playerState.color.withValues(alpha: 0.3)..style = PaintingStyle.stroke);
+
+    // Little triangle
+    final path = Path()
+      ..moveTo(pos.x - 5, pos.y - charSize - 10)
+      ..lineTo(pos.x + 5, pos.y - charSize - 10)
+      ..lineTo(pos.x, pos.y - charSize);
+    canvas.drawPath(path, Paint()..color = Colors.black.withValues(alpha: 0.8));
+
+    tp.paint(canvas, Offset(pos.x - tp.width / 2, pos.y - charSize - tp.height - 18));
   }
 }
 
