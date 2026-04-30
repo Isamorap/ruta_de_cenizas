@@ -7,6 +7,8 @@ import 'models/player_state.dart';
 import 'models/character_data.dart';
 import 'models/user_profile.dart';
 import 'ruta_de_cenizas_game.dart';
+import 'package:flutter/gestures.dart';
+import 'package:url_launcher/url_launcher.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -27,22 +29,38 @@ void main() async {
         body: GameWidget<RutaDeCenizasGame>(
           game: game,
           overlayBuilderMap: {
-            'DiceUI': (context, game) => DiceUI(game: game as RutaDeCenizasGame),
-            'EventMessageOverlay': (context, game) => EventMessageOverlay(game: game as RutaDeCenizasGame),
-            'InventoryButton': (context, game) => InventoryButton(game: game as RutaDeCenizasGame),
-            'BackToMenuButton': (context, game) => BackToMenuButton(game: game as RutaDeCenizasGame),
-            'NarrativeOverlay': (context, game) => NarrativeOverlay(game: game as RutaDeCenizasGame),
-            'SoloSetupOverlay': (context, game) => SoloSetupOverlay(game: game as RutaDeCenizasGame),
-            'LobbyOverlay': (context, game) => LobbyOverlay(game: game as RutaDeCenizasGame),
-            'ExtrasOverlay': (context, game) => ExtrasOverlay(game: game as RutaDeCenizasGame),
-            'InventoryMenu': (context, game) => InventoryMenu(game: game as RutaDeCenizasGame),
-            'InventoryPrompt': (context, game) => InventoryPrompt(game: game as RutaDeCenizasGame),
-            'SettingsOverlay': (context, game) => SettingsOverlay(game: game as RutaDeCenizasGame),
-            'MainMenuOverlay': (context, game) => MainMenuOverlay(game: game as RutaDeCenizasGame),
-            'LazoDefenseOverlay': (context, game) => LazoDefenseOverlay(game: game as RutaDeCenizasGame),
-            'GameSummaryOverlay': (context, game) => GameSummaryOverlay(game: game as RutaDeCenizasGame),
-            'CosmeticShopOverlay': (context, game) => CosmeticShopOverlay(game: game as RutaDeCenizasGame),
-
+            'DiceUI': (context, game) =>
+                DiceUI(game: game as RutaDeCenizasGame),
+            'EventMessageOverlay': (context, game) =>
+                EventMessageOverlay(game: game as RutaDeCenizasGame),
+            'InventoryButton': (context, game) =>
+                InventoryButton(game: game as RutaDeCenizasGame),
+            'BackToMenuButton': (context, game) =>
+                BackToMenuButton(game: game as RutaDeCenizasGame),
+            'NarrativeOverlay': (context, game) =>
+                NarrativeOverlay(game: game as RutaDeCenizasGame),
+            'SoloSetupOverlay': (context, game) =>
+                SoloSetupOverlay(game: game as RutaDeCenizasGame),
+            'LobbyOverlay': (context, game) =>
+                LobbyOverlay(game: game as RutaDeCenizasGame),
+            'ExtrasOverlay': (context, game) =>
+                ExtrasOverlay(game: game as RutaDeCenizasGame),
+            'InventoryMenu': (context, game) =>
+                InventoryMenu(game: game as RutaDeCenizasGame),
+            'InventoryPrompt': (context, game) =>
+                InventoryPrompt(game: game as RutaDeCenizasGame),
+            'SettingsOverlay': (context, game) =>
+                SettingsOverlay(game: game as RutaDeCenizasGame),
+            'MainMenuOverlay': (context, game) =>
+                MainMenuOverlay(game: game as RutaDeCenizasGame),
+            'LazoDefenseOverlay': (context, game) =>
+                LazoDefenseOverlay(game: game as RutaDeCenizasGame),
+            'GameSummaryOverlay': (context, game) =>
+                GameSummaryOverlay(game: game as RutaDeCenizasGame),
+            'CosmeticShopOverlay': (context, game) =>
+                CosmeticShopOverlay(game: game as RutaDeCenizasGame),
+            'GlossaryOverlay': (context, game) =>
+                GlossaryOverlay(game: game as RutaDeCenizasGame),
           },
           initialActiveOverlays: const [
             'MainMenuOverlay',
@@ -94,7 +112,7 @@ class MainMenuOverlay extends StatelessWidget {
                       ),
                     ),
                     Text(
-                      "PreAlpha 0.0.1",
+                      "PreAlpha 0.0.2",
                       textAlign: TextAlign.center,
                       style: TextStyle(
                         fontSize: 12,
@@ -120,11 +138,15 @@ class MainMenuOverlay extends StatelessWidget {
                       game.overlays.remove('MainMenuOverlay');
                     }),
                     _menuButton("MULTIJUGADOR ONLINE", null), // Próximamente
-                    _menuButton("EXTRAS", () {
+                    _menuButton("CARRERA", () {
                       game.overlays.add('ExtrasOverlay');
                       game.overlays.remove('MainMenuOverlay');
                     }),
-                    _menuButton("AJUSTES", () {
+                    _menuButton("GLOSARIO", () {
+                      game.overlays.add('GlossaryOverlay');
+                      game.overlays.remove('MainMenuOverlay');
+                    }),
+                    _menuButton("ACERCA DE", () {
                       game.overlays.add('SettingsOverlay');
                       game.overlays.remove('MainMenuOverlay');
                     }),
@@ -194,107 +216,251 @@ class LobbyOverlay extends StatefulWidget {
 }
 
 class _LobbyOverlayState extends State<LobbyOverlay> {
-  int playerCount = 2;
-  final List<String> names = [
-    "Jugador 1",
-    "Jugador 2",
-    "Jugador 3",
-    "Jugador 4",
-  ];
-  final List<Color> colors = [
-    Colors.red,
-    Colors.blue,
-    Colors.white,
-    Colors.amber,
-  ];
-  final List<int> charIdx = [0, 1, 2, 3];
+  int _playerCount = 2;
+  bool _isConfiguring = false;
+  late List<TextEditingController> _nameCtrls;
+  late List<int> _selectedChars;
+
+  @override
+  void initState() {
+    super.initState();
+    _nameCtrls = List.generate(
+      4,
+      (i) => TextEditingController(
+        text: i == 0 ? widget.game.userProfile.name : "Jugador ${i + 1}",
+      ),
+    );
+    _selectedChars = List.generate(4, (i) => i);
+  }
+
+  @override
+  void dispose() {
+    for (var ctrl in _nameCtrls) {
+      ctrl.dispose();
+    }
+    super.dispose();
+  }
 
   @override
   Widget build(BuildContext context) {
     return Container(
-      color: const Color(0xFF0A0A0A).withValues(alpha: 0.95),
+      color: const Color(0xFF0A0A0A).withValues(alpha: 0.98),
       child: Center(
-        child: Container(
-          width: 350,
-          padding: const EdgeInsets.all(30),
-          decoration: BoxDecoration(border: Border.all(color: Colors.white10)),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              const Text(
-                "PREPARACIÓN",
-                style: TextStyle(letterSpacing: 4, fontSize: 14),
-              ),
-              const SizedBox(height: 30),
-              Row(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  const Text("JUGADORES: "),
-                  DropdownButton<int>(
-                    value: playerCount,
-                    items: [2, 3, 4]
-                        .map(
-                          (e) => DropdownMenuItem(
-                            value: e,
-                            child: Text(e.toString()),
-                          ),
-                        )
-                        .toList(),
-                    onChanged: (v) => setState(() => playerCount = v!),
-                  ),
-                ],
-              ),
-              const SizedBox(height: 20),
-              // Aquí simplificamos, pero podrías añadir inputs para nombres
-              Text(
-                "Color de Ficha:",
-                style: TextStyle(color: Colors.white54, fontSize: 10),
-              ),
-              Row(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: colors
-                    .map(
-                      (c) => Container(
-                        margin: const EdgeInsets.all(5),
-                        width: 20,
-                        height: 20,
-                        color: c,
-                      ),
-                    )
-                    .toList(),
-              ),
-              const SizedBox(height: 40),
-              OutlinedButton(
-                onPressed: () {
-                  final list = List.generate(
-                    playerCount,
-                    (i) => PlayerState(
-                      name: names[i],
-                      color: colors[i],
-                      characterId: "char${charIdx[i]}",
+        child: SingleChildScrollView(
+          padding: const EdgeInsets.symmetric(vertical: 40),
+          child: AnimatedSwitcher(
+            duration: const Duration(milliseconds: 300),
+            child: _isConfiguring ? _buildStep2() : _buildStep1(),
+          ),
+        ),
+      ),
+    );
+  }
+
+  // PASO 1: Selección de cantidad de jugadores
+  Widget _buildStep1() {
+    return Container(
+      key: const ValueKey('step1'),
+      width: 350,
+      padding: const EdgeInsets.all(30),
+      decoration: BoxDecoration(border: Border.all(color: Colors.white10)),
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          const Text(
+            "MULTIJUGADOR LOCAL",
+            style: TextStyle(
+              letterSpacing: 4,
+              fontSize: 14,
+              color: Colors.amber,
+            ),
+          ),
+          const SizedBox(height: 10),
+          const Text(
+            "¿Cuántos escaladores subirán hoy?",
+            style: TextStyle(fontSize: 10, color: Colors.white54),
+          ),
+          const SizedBox(height: 40),
+          Row(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [2, 3, 4].map((n) {
+              final selected = _playerCount == n;
+              return GestureDetector(
+                onTap: () => setState(() => _playerCount = n),
+                child: AnimatedContainer(
+                  duration: const Duration(milliseconds: 200),
+                  margin: const EdgeInsets.symmetric(horizontal: 10),
+                  width: 50,
+                  height: 50,
+                  decoration: BoxDecoration(
+                    border: Border.all(
+                      color: selected ? Colors.amber : Colors.white10,
+                      width: selected ? 2 : 1,
                     ),
-                  );
-                  widget.game.startGame(list);
-                  widget.game.overlays.remove('LobbyOverlay');
+                    color: selected
+                        ? Colors.amber.withValues(alpha: 0.1)
+                        : Colors.transparent,
+                  ),
+                  child: Center(
+                    child: Text(
+                      n.toString(),
+                      style: TextStyle(
+                        fontSize: 18,
+                        fontWeight: FontWeight.bold,
+                        color: selected ? Colors.amber : Colors.white24,
+                      ),
+                    ),
+                  ),
+                ),
+              );
+            }).toList(),
+          ),
+          const SizedBox(height: 50),
+          OutlinedButton(
+            onPressed: () => setState(() => _isConfiguring = true),
+            style: OutlinedButton.styleFrom(
+              side: const BorderSide(color: Colors.white24),
+              padding: const EdgeInsets.symmetric(horizontal: 40, vertical: 15),
+            ),
+            child: const Text("CONTINUAR", style: TextStyle(letterSpacing: 2)),
+          ),
+          TextButton(
+            onPressed: () {
+              widget.game.overlays.add('MainMenuOverlay');
+              widget.game.overlays.remove('LobbyOverlay');
+            },
+            child: const Text(
+              "VOLVER",
+              style: TextStyle(color: Colors.white24, fontSize: 10),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  // PASO 2: Configuración de cada jugador
+  Widget _buildStep2() {
+    return Container(
+      key: const ValueKey('step2'),
+      width: 450,
+      padding: const EdgeInsets.all(30),
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          const Text(
+            "CONFIGURAR EQUIPO",
+            style: TextStyle(
+              letterSpacing: 4,
+              fontSize: 14,
+              color: Colors.amber,
+            ),
+          ),
+          const SizedBox(height: 30),
+          ...List.generate(_playerCount, (i) => _buildPlayerConfig(i)),
+          const SizedBox(height: 40),
+          OutlinedButton(
+            onPressed: () {
+              final players = List.generate(_playerCount, (i) {
+                final char = kCharacters[_selectedChars[i]];
+                return PlayerState(
+                  name: _nameCtrls[i].text.trim().isEmpty
+                      ? "Jugador ${i + 1}"
+                      : _nameCtrls[i].text.trim(),
+                  color: char.color,
+                  characterId: char.id,
+                  isBot: false,
+                );
+              });
+              widget.game.isStoryMode = false;
+              widget.game.startGame(players);
+              widget.game.overlays.remove('LobbyOverlay');
+            },
+            style: OutlinedButton.styleFrom(
+              side: const BorderSide(color: Colors.amber),
+              foregroundColor: Colors.amber,
+              padding: const EdgeInsets.symmetric(horizontal: 50, vertical: 20),
+            ),
+            child: const Text(
+              "INICIAR EXPEDICIÓN",
+              style: TextStyle(letterSpacing: 2, fontWeight: FontWeight.bold),
+            ),
+          ),
+          TextButton(
+            onPressed: () => setState(() => _isConfiguring = false),
+            child: const Text(
+              "ATRÁS",
+              style: TextStyle(color: Colors.white24, fontSize: 10),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildPlayerConfig(int i) {
+    final char = kCharacters[_selectedChars[i]];
+    return Container(
+      margin: const EdgeInsets.only(bottom: 20),
+      padding: const EdgeInsets.all(15),
+      decoration: BoxDecoration(
+        color: Colors.white.withValues(alpha: 0.02),
+        border: Border.all(color: Colors.white10),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            "JUGADOR ${i + 1}",
+            style: TextStyle(
+              fontSize: 10,
+              color: char.color,
+              fontWeight: FontWeight.bold,
+              letterSpacing: 2,
+            ),
+          ),
+          const SizedBox(height: 10),
+          Row(
+            children: [
+              // Selector de Personaje (Mini)
+              GestureDetector(
+                onTap: () {
+                  setState(() {
+                    _selectedChars[i] =
+                        (_selectedChars[i] + 1) % kCharacters.length;
+                  });
                 },
-                child: const Text(
-                  "INICIAR EXPEDICIÓN",
-                  style: TextStyle(letterSpacing: 2),
+                child: Container(
+                  width: 50,
+                  height: 50,
+                  decoration: BoxDecoration(
+                    shape: BoxShape.circle,
+                    border: Border.all(color: char.color, width: 1.5),
+                  ),
+                  child: Icon(char.icon, color: char.color, size: 24),
                 ),
               ),
-              TextButton(
-                onPressed: () {
-                  widget.game.overlays.add('MainMenuOverlay');
-                  widget.game.overlays.remove('LobbyOverlay');
-                },
-                child: const Text(
-                  "VOLVER",
-                  style: TextStyle(color: Colors.white24, fontSize: 10),
+              const SizedBox(width: 15),
+              // Nombre
+              Expanded(
+                child: TextField(
+                  controller: _nameCtrls[i],
+                  style: const TextStyle(fontSize: 14, color: Colors.white),
+                  decoration: InputDecoration(
+                    hintText: "Nombre",
+                    hintStyle: const TextStyle(color: Colors.white24),
+                    enabledBorder: UnderlineInputBorder(
+                      borderSide: BorderSide(color: Colors.white10),
+                    ),
+                    focusedBorder: UnderlineInputBorder(
+                      borderSide: BorderSide(color: char.color),
+                    ),
+                  ),
                 ),
               ),
             ],
           ),
-        ),
+        ],
       ),
     );
   }
@@ -312,31 +478,82 @@ class SettingsOverlay extends StatelessWidget {
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            const Text(
-              "AJUSTES Y CRÉDITOS",
-              style: TextStyle(letterSpacing: 4),
+            Text(
+              "ACERCA DE",
+              style: TextStyle(
+                letterSpacing: 4,
+                fontSize: 22,
+                fontWeight: FontWeight.bold,
+                color: Colors.white.withValues(alpha: 0.8),
+              ),
             ),
             const SizedBox(height: 40),
-            const Padding(
-              padding: EdgeInsets.symmetric(horizontal: 40),
-              child: Text(
-                "Este proyecto fue realizado con fines no lucrativos, nacido por las ganas de jugar serpientes y escaleras como en la infancia.",
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 40),
+              child: RichText(
                 textAlign: TextAlign.center,
-                style: TextStyle(
-                  height: 1.8,
-                  fontWeight: FontWeight.w200,
-                  fontStyle: FontStyle.italic,
-                  color: Colors.white70,
+                text: TextSpan(
+                  style: const TextStyle(
+                    height: 1.8,
+                    fontWeight: FontWeight.w200,
+                    fontStyle: FontStyle.italic,
+                    color: Colors.white70,
+                    fontSize: 16,
+                  ),
+                  children: [
+                    const TextSpan(
+                      text:
+                          "Este juego es una reinterpretación atmosférica y estratégica del clásico ",
+                    ),
+                    const TextSpan(
+                      text: "Serpientes y Escaleras",
+                      style: TextStyle(
+                        fontWeight: FontWeight.w400,
+                        color: Colors.white,
+                      ),
+                    ),
+                    const TextSpan(text: ".\nDesarrollado por "),
+                    TextSpan(
+                      text: "Isaac Mora",
+                      style: const TextStyle(
+                        color: Colors.blueAccent, // Color de link
+                        decoration: TextDecoration.underline,
+                        fontWeight: FontWeight.w400,
+                      ),
+                      recognizer: TapGestureRecognizer()
+                        ..onTap = () async {
+                          final Uri url = Uri.parse(
+                            'https://github.com/Isamorap/ruta_de_cenizas',
+                          );
+                          if (!await launchUrl(url)) {
+                            throw Exception('No se pudo abrir $url');
+                          }
+                        },
+                    ),
+                    const TextSpan(
+                      text: " como un proyecto personal sin fines de lucro.",
+                    ),
+                  ],
                 ),
               ),
             ),
             const SizedBox(height: 60),
             OutlinedButton(
+              style: OutlinedButton.styleFrom(
+                side: const BorderSide(color: Colors.white30),
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 30,
+                  vertical: 15,
+                ),
+              ),
               onPressed: () {
                 game.overlays.add('MainMenuOverlay');
                 game.overlays.remove('SettingsOverlay');
               },
-              child: const Text("VOLVER AL MENÚ"),
+              child: const Text(
+                "VOLVER AL MENÚ",
+                style: TextStyle(color: Colors.white),
+              ),
             ),
           ],
         ),
@@ -545,7 +762,7 @@ class _SoloSetupOverlayState extends State<SoloSetupOverlay> {
                       : _nameCtrl.text.trim();
                   widget.game.userProfile.name = name;
                   widget.game.userProfile.save();
-                  
+
                   final players = [
                     PlayerState(
                       name: name,
@@ -561,6 +778,7 @@ class _SoloSetupOverlayState extends State<SoloSetupOverlay> {
                     ),
                   ];
 
+                  widget.game.isStoryMode = true;
                   if (widget.game.userProfile.isFirstTimeStory) {
                     widget.game.overlays.add('NarrativeOverlay');
                     // Store players to start after intro
@@ -620,173 +838,232 @@ class ExtrasOverlay extends StatefulWidget {
 }
 
 class _ExtrasOverlayState extends State<ExtrasOverlay> {
+  late final TextEditingController _nameCtrl;
+
+  @override
+  void initState() {
+    super.initState();
+    _nameCtrl = TextEditingController(text: widget.game.userProfile.name);
+  }
+
+  @override
+  void dispose() {
+    _nameCtrl.dispose();
+    super.dispose();
+  }
+
   @override
   Widget build(BuildContext context) {
     final profile = widget.game.userProfile;
     return Container(
       color: const Color(0xFF0A0A0A),
       child: Center(
-        child: Container(
-          width: 400,
-          padding: const EdgeInsets.all(30),
-          child: Column(
-            children: [
-              Row(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  const Text(
-                    "EXTRAS",
-                    style: TextStyle(letterSpacing: 4, fontSize: 18),
-                  ),
-                ],
-              ),
-              const SizedBox(height: 20),
-
-              // Perfil
-              Container(
-                padding: const EdgeInsets.all(20),
-                decoration: BoxDecoration(
-                  border: Border.all(color: Colors.white10),
-                  color: Colors.white.withValues(alpha: 0.02),
-                ),
-                child: Column(
+        child: SingleChildScrollView(
+          child: Container(
+            width: 400,
+            padding: const EdgeInsets.all(30),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.center,
                   children: [
-                    Text(
-                      profile.name.toUpperCase(),
-                      style: const TextStyle(fontSize: 20, letterSpacing: 2),
-                    ),
-                    const SizedBox(height: 10),
-                    Text(
-                      "NIVEL ${profile.level}",
-                      style: const TextStyle(
-                        color: Colors.amber,
-                        letterSpacing: 4,
-                      ),
-                    ),
-                    const SizedBox(height: 5),
-                    LinearProgressIndicator(
-                      value: (profile.xp % 500) / 500,
-                      backgroundColor: Colors.white10,
-                      valueColor: const AlwaysStoppedAnimation(Colors.amber),
-                    ),
-                    const SizedBox(height: 5),
-                    Text(
-                      "${profile.xp % 500} / 500 XP",
-                      style: const TextStyle(
-                        fontSize: 10,
-                        color: Colors.white38,
-                      ),
-                    ),
-                    const SizedBox(height: 15),
                     const Text(
-                      "TÍTULOS DESBLOQUEADOS",
-                      style: TextStyle(
-                        fontSize: 9,
-                        color: Colors.white24,
-                        letterSpacing: 2,
-                      ),
-                    ),
-                    const SizedBox(height: 5),
-                    Wrap(
-                      alignment: WrapAlignment.center,
-                      spacing: 5,
-                      children: profile.earnedTitles
-                          .map(
-                            (t) => Container(
-                              padding: const EdgeInsets.symmetric(
-                                horizontal: 8,
-                                vertical: 3,
-                              ),
-                              decoration: BoxDecoration(
-                                border: Border.all(
-                                  color: Colors.amber.withValues(alpha: 0.3),
-                                ),
-                                borderRadius: BorderRadius.circular(10),
-                              ),
-                              child: Text(
-                                t,
-                                style: const TextStyle(
-                                  fontSize: 9,
-                                  color: Colors.amber,
-                                ),
-                              ),
-                            ),
-                          )
-                          .toList(),
+                      "CARRERA",
+                      style: TextStyle(letterSpacing: 4, fontSize: 18),
                     ),
                   ],
                 ),
-              ),
+                const SizedBox(height: 20),
 
-              const SizedBox(height: 30),
-
-              // Estadísticas
-              Row(
-                mainAxisAlignment: MainAxisAlignment.spaceAround,
-                children: [
-                  _stat("LOCAL", profile.localWins.toString()),
-                  _stat("ONLINE", profile.onlineWins.toString()),
-                  _stat("ESCALADO", "${profile.totalTilesClimbed * 50}m"),
-                ],
-              ),
-
-              const SizedBox(height: 30),
-
-              // Fragmentos
-              const Text(
-                "FRAGMENTOS DE HISTORIA",
-                style: TextStyle(
-                  fontSize: 10,
-                  color: Colors.white54,
-                  letterSpacing: 2,
-                ),
-              ),
-              const SizedBox(height: 10),
-              Wrap(
-                spacing: 8,
-                children: List.generate(
-                  10,
-                  (i) => Icon(
-                    Icons.menu_book,
-                    size: 20,
-                    color: profile.historyFragments[i]
-                        ? Colors.amber
-                        : Colors.white10,
+                // Perfil
+                Container(
+                  padding: const EdgeInsets.all(20),
+                  decoration: BoxDecoration(
+                    border: Border.all(color: Colors.white10),
+                    color: Colors.white.withValues(alpha: 0.02),
+                  ),
+                  child: Column(
+                    children: [
+                      // Nombre Editable
+                      TextField(
+                        controller: _nameCtrl,
+                        textAlign: TextAlign.center,
+                        maxLength: 15,
+                        style: const TextStyle(
+                          fontSize: 20,
+                          letterSpacing: 2,
+                          color: Colors.white,
+                        ),
+                        decoration: InputDecoration(
+                          counterText: "",
+                          hintText: "Tu Nombre",
+                          hintStyle: TextStyle(
+                            color: Colors.white24,
+                            fontSize: 14,
+                          ),
+                          suffixIcon: IconButton(
+                            icon: Icon(
+                              Icons.save,
+                              color: Colors.amber,
+                              size: 20,
+                            ),
+                            onPressed: () {
+                              if (_nameCtrl.text.trim().isNotEmpty) {
+                                widget.game.userProfile.name = _nameCtrl.text
+                                    .trim();
+                                widget.game.userProfile.save();
+                                widget.game.notifyListeners();
+                                ScaffoldMessenger.of(context).showSnackBar(
+                                  const SnackBar(
+                                    content: Text("Nombre guardado"),
+                                  ),
+                                );
+                                setState(() {});
+                              }
+                            },
+                          ),
+                          enabledBorder: UnderlineInputBorder(
+                            borderSide: BorderSide(color: Colors.white10),
+                          ),
+                          focusedBorder: UnderlineInputBorder(
+                            borderSide: BorderSide(color: Colors.amber),
+                          ),
+                        ),
+                      ),
+                      const SizedBox(height: 10),
+                      Text(
+                        "NIVEL ${profile.level}",
+                        style: const TextStyle(
+                          color: Colors.amber,
+                          letterSpacing: 4,
+                        ),
+                      ),
+                      const SizedBox(height: 5),
+                      LinearProgressIndicator(
+                        value: (profile.xp % 500) / 500,
+                        backgroundColor: Colors.white10,
+                        valueColor: const AlwaysStoppedAnimation(Colors.amber),
+                      ),
+                      const SizedBox(height: 5),
+                      Text(
+                        "${profile.xp % 500} / 500 XP",
+                        style: const TextStyle(
+                          fontSize: 10,
+                          color: Colors.white38,
+                        ),
+                      ),
+                      const SizedBox(height: 15),
+                      const Text(
+                        "TÍTULOS DESBLOQUEADOS",
+                        style: TextStyle(
+                          fontSize: 9,
+                          color: Colors.white24,
+                          letterSpacing: 2,
+                        ),
+                      ),
+                      const SizedBox(height: 5),
+                      Wrap(
+                        alignment: WrapAlignment.center,
+                        spacing: 5,
+                        children: profile.earnedTitles
+                            .map(
+                              (t) => Container(
+                                padding: const EdgeInsets.symmetric(
+                                  horizontal: 8,
+                                  vertical: 3,
+                                ),
+                                decoration: BoxDecoration(
+                                  border: Border.all(
+                                    color: Colors.amber.withValues(alpha: 0.3),
+                                  ),
+                                  borderRadius: BorderRadius.circular(10),
+                                ),
+                                child: Text(
+                                  t,
+                                  style: const TextStyle(
+                                    fontSize: 9,
+                                    color: Colors.amber,
+                                  ),
+                                ),
+                              ),
+                            )
+                            .toList(),
+                      ),
+                    ],
                   ),
                 ),
-              ),
 
-              const Spacer(),
+                const SizedBox(height: 30),
 
-              if (profile.allFragmentsUnlocked)
-                OutlinedButton(
+                // Estadísticas
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceAround,
+                  children: [
+                    _stat("LOCAL", profile.localWins.toString()),
+                    _stat("ONLINE", profile.onlineWins.toString()),
+                    _stat("ESCALADO", "${profile.totalTilesClimbed * 50}m"),
+                  ],
+                ),
+
+                const SizedBox(height: 30),
+
+                // Fragmentos
+                const Text(
+                  "FRAGMENTOS DE HISTORIA",
+                  style: TextStyle(
+                    fontSize: 10,
+                    color: Colors.white54,
+                    letterSpacing: 2,
+                  ),
+                ),
+                const SizedBox(height: 10),
+                Wrap(
+                  spacing: 8,
+                  children: List.generate(
+                    10,
+                    (i) => Icon(
+                      Icons.menu_book,
+                      size: 20,
+                      color: profile.historyFragments[i]
+                          ? Colors.amber
+                          : Colors.white10,
+                    ),
+                  ),
+                ),
+
+                const SizedBox(height: 40),
+
+                if (profile.allFragmentsUnlocked)
+                  OutlinedButton(
+                    onPressed: () {
+                      // TODO: Implement shop
+                    },
+                    child: const Text(
+                      "TIENDA DE EXTRAS",
+                      style: TextStyle(color: Colors.cyanAccent),
+                    ),
+                  )
+                else
+                  const Text(
+                    "Completa la historia para desbloquear la tienda",
+                    style: TextStyle(fontSize: 10, color: Colors.white24),
+                  ),
+
+                const SizedBox(height: 20),
+
+                TextButton(
                   onPressed: () {
-                    // TODO: Implement shop
+                    widget.game.overlays.add('MainMenuOverlay');
+                    widget.game.overlays.remove('ExtrasOverlay');
                   },
                   child: const Text(
-                    "TIENDA DE EXTRAS",
-                    style: TextStyle(color: Colors.cyanAccent),
+                    "VOLVER",
+                    style: TextStyle(color: Colors.white24),
                   ),
-                )
-              else
-                const Text(
-                  "Completa la historia para desbloquear la tienda",
-                  style: TextStyle(fontSize: 10, color: Colors.white24),
                 ),
-
-              const SizedBox(height: 20),
-
-              TextButton(
-                onPressed: () {
-                  widget.game.overlays.add('MainMenuOverlay');
-                  widget.game.overlays.remove('ExtrasOverlay');
-                },
-                child: const Text(
-                  "VOLVER",
-                  style: TextStyle(color: Colors.white24),
-                ),
-              ),
-            ],
+              ],
+            ),
           ),
         ),
       ),
@@ -835,7 +1112,7 @@ class _NarrativeOverlayState extends State<NarrativeOverlay> {
       'Bienvenido, $name. En un mundo acabado por las guerras y con la magia desaparecida de la faz de la tierra, buscas la luz una vez más.',
       'Una densa capa de cenizas ha cubierto el mundo, pero tienes la esperanza de que en la cima el aire pueda ser respirable.',
       'Hay más habitantes queriendo escalar, pero no todos tienen buenas intenciones. Suerte.',
-      'TUTORIAL: Lanza los dados y escala la montaña.'
+      'TUTORIAL: Lanza los dados y escala la montaña.',
     ];
   }
 
@@ -885,7 +1162,9 @@ class _NarrativeOverlayState extends State<NarrativeOverlay> {
                     widget.game.overlays.remove('NarrativeOverlay');
                   }
                 },
-                child: Text(_step == _dialogs.length - 1 ? "EMPEZAR" : "SIGUIENTE"),
+                child: Text(
+                  _step == _dialogs.length - 1 ? "EMPEZAR" : "SIGUIENTE",
+                ),
               ),
             ],
           ),
@@ -894,6 +1173,7 @@ class _NarrativeOverlayState extends State<NarrativeOverlay> {
     );
   }
 }
+
 // ─── Botón Volver al Menú ──────────────────────────────────────────────────
 class BackToMenuButton extends StatelessWidget {
   final RutaDeCenizasGame game;
@@ -937,8 +1217,11 @@ class InventoryMenu extends StatelessWidget {
       listenable: game,
       builder: (context, _) {
         // En modo historia/solo, siempre mostramos el inventario del jugador humano
-        final humanPlayer = game.players.firstWhere((p) => !p.isBot, orElse: () => game.currentPlayer);
-        
+        final humanPlayer = game.players.firstWhere(
+          (p) => !p.isBot,
+          orElse: () => game.currentPlayer,
+        );
+
         return Center(
           child: Container(
             width: 320,
@@ -954,7 +1237,13 @@ class InventoryMenu extends StatelessWidget {
                 Row(
                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   children: [
-                    const Text("INVENTARIO", style: TextStyle(letterSpacing: 2, fontWeight: FontWeight.bold)),
+                    const Text(
+                      "INVENTARIO",
+                      style: TextStyle(
+                        letterSpacing: 2,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
                     IconButton(
                       icon: const Icon(Icons.close, color: Colors.white54),
                       onPressed: () => game.overlays.remove('InventoryMenu'),
@@ -990,24 +1279,56 @@ class InventoryMenu extends StatelessWidget {
                   desc: "Te protege del Lazo del Malvado.",
                 ),
                 const Spacer(),
-                const Text("HISTORIA", style: TextStyle(fontSize: 10, color: Colors.white24, letterSpacing: 2)),
+                const Text(
+                  "HISTORIA",
+                  style: TextStyle(
+                    fontSize: 10,
+                    color: Colors.white24,
+                    letterSpacing: 2,
+                  ),
+                ),
                 const SizedBox(height: 10),
                 Expanded(
                   child: ListView.builder(
                     itemCount: game.currentHistoryIndex,
                     itemBuilder: (context, i) => ListTile(
                       contentPadding: EdgeInsets.zero,
-                      leading: const Icon(Icons.menu_book, size: 16, color: Colors.amber),
-                      title: Text("Fragmento ${i + 1}", style: const TextStyle(fontSize: 12, color: Colors.white70)),
+                      leading: const Icon(
+                        Icons.menu_book,
+                        size: 16,
+                        color: Colors.amber,
+                      ),
+                      title: Text(
+                        "Fragmento ${i + 1}",
+                        style: const TextStyle(
+                          fontSize: 12,
+                          color: Colors.white70,
+                        ),
+                      ),
                       onTap: () {
-                         showDialog(
+                        showDialog(
                           context: context,
                           builder: (context) => AlertDialog(
                             backgroundColor: const Color(0xFF1A1A1A),
-                            title: Text("FRAGMENTO ${i + 1}", style: const TextStyle(color: Colors.amber, fontSize: 14)),
-                            content: Text(game.fragmentosHistoria[i], style: const TextStyle(color: Colors.white70, fontSize: 13)),
+                            title: Text(
+                              "FRAGMENTO ${i + 1}",
+                              style: const TextStyle(
+                                color: Colors.amber,
+                                fontSize: 14,
+                              ),
+                            ),
+                            content: Text(
+                              game.fragmentosHistoria[i],
+                              style: const TextStyle(
+                                color: Colors.white70,
+                                fontSize: 13,
+                              ),
+                            ),
                             actions: [
-                              TextButton(onPressed: () => Navigator.pop(context), child: const Text("CERRAR"))
+                              TextButton(
+                                onPressed: () => Navigator.pop(context),
+                                child: const Text("CERRAR"),
+                              ),
                             ],
                           ),
                         );
@@ -1023,7 +1344,14 @@ class InventoryMenu extends StatelessWidget {
     );
   }
 
-  Widget _buildInventoryItem(IconData icon, Color color, String name, int count, {String? desc, VoidCallback? onTap}) {
+  Widget _buildInventoryItem(
+    IconData icon,
+    Color color,
+    String name,
+    int count, {
+    String? desc,
+    VoidCallback? onTap,
+  }) {
     return Padding(
       padding: const EdgeInsets.only(bottom: 12),
       child: InkWell(
@@ -1046,9 +1374,21 @@ class InventoryMenu extends StatelessWidget {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Text(name, style: const TextStyle(fontSize: 14, fontWeight: FontWeight.bold)),
+                    Text(
+                      name,
+                      style: const TextStyle(
+                        fontSize: 14,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
                     if (desc != null)
-                      Text(desc, style: const TextStyle(fontSize: 10, color: Colors.white38)),
+                      Text(
+                        desc,
+                        style: const TextStyle(
+                          fontSize: 10,
+                          color: Colors.white38,
+                        ),
+                      ),
                   ],
                 ),
               ),
@@ -1082,14 +1422,26 @@ class LazoDefenseOverlay extends StatelessWidget {
         decoration: BoxDecoration(
           color: const Color(0xFF121212),
           border: Border.all(color: Colors.amber),
-          boxShadow: [BoxShadow(color: Colors.amber.withValues(alpha: 0.2), blurRadius: 20)],
+          boxShadow: [
+            BoxShadow(
+              color: Colors.amber.withValues(alpha: 0.2),
+              blurRadius: 20,
+            ),
+          ],
         ),
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
             const Icon(Icons.shield, color: Colors.amber, size: 48),
             const SizedBox(height: 20),
-            const Text("¡ATAQUE DETECTADO!", style: TextStyle(fontWeight: FontWeight.bold, letterSpacing: 2, color: Colors.amber)),
+            const Text(
+              "¡ATAQUE DETECTADO!",
+              style: TextStyle(
+                fontWeight: FontWeight.bold,
+                letterSpacing: 2,
+                color: Colors.amber,
+              ),
+            ),
             const SizedBox(height: 15),
             const Text(
               "Alguien está intentando usar el Lazo del Malvado contra ti. ¿Quieres usar tu Voluntad de los Antiguos para protegerte?",
@@ -1098,7 +1450,10 @@ class LazoDefenseOverlay extends StatelessWidget {
             ),
             const SizedBox(height: 30),
             ElevatedButton(
-              style: ElevatedButton.styleFrom(backgroundColor: Colors.amber, foregroundColor: Colors.black),
+              style: ElevatedButton.styleFrom(
+                backgroundColor: Colors.amber,
+                foregroundColor: Colors.black,
+              ),
               onPressed: () {
                 game.resolveLazo(defended: true);
                 game.overlays.remove('LazoDefenseOverlay');
@@ -1111,7 +1466,10 @@ class LazoDefenseOverlay extends StatelessWidget {
                 game.resolveLazo(defended: false);
                 game.overlays.remove('LazoDefenseOverlay');
               },
-              child: const Text("NO HACER NADA", style: TextStyle(color: Colors.white24)),
+              child: const Text(
+                "NO HACER NADA",
+                style: TextStyle(color: Colors.white24),
+              ),
             ),
           ],
         ),
@@ -1160,7 +1518,10 @@ class InventoryPrompt extends StatelessWidget {
                 game.overlays.remove('InventoryPrompt');
                 game.triggerFall();
               },
-              child: const Text("ARRIESGARSE", style: TextStyle(color: Colors.white24)),
+              child: const Text(
+                "ARRIESGARSE",
+                style: TextStyle(color: Colors.white24),
+              ),
             ),
           ],
         ),
@@ -1168,6 +1529,7 @@ class InventoryPrompt extends StatelessWidget {
     );
   }
 }
+
 // ─── Indicador de Turno ───────────────────────────────────────────────────
 class DiceUI extends StatelessWidget {
   final RutaDeCenizasGame game;
@@ -1178,7 +1540,8 @@ class DiceUI extends StatelessWidget {
     return ListenableBuilder(
       listenable: game,
       builder: (context, _) {
-        if (!game.isGameStarted || game.players.length <= 1) return const SizedBox.shrink();
+        if (!game.isGameStarted || game.players.length <= 1)
+          return const SizedBox.shrink();
         return Positioned(
           top: 20,
           left: 0,
@@ -1188,7 +1551,9 @@ class DiceUI extends StatelessWidget {
               padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 8),
               decoration: BoxDecoration(
                 color: game.currentPlayer.color.withValues(alpha: 0.15),
-                border: Border.all(color: game.currentPlayer.color.withValues(alpha: 0.5)),
+                border: Border.all(
+                  color: game.currentPlayer.color.withValues(alpha: 0.5),
+                ),
                 borderRadius: BorderRadius.circular(2),
               ),
               child: Text(
@@ -1225,9 +1590,13 @@ class EventMessageOverlay extends StatelessWidget {
         final isWin = game.eventMessage?.contains("HA CONQUISTADO") ?? false;
 
         Color bgColor = const Color(0xFF121212).withValues(alpha: 0.95);
-        Color accentColor = isAtajo ? const Color(0xFF00CED1) : const Color(0xFFFF4500);
+        Color accentColor = isAtajo
+            ? const Color(0xFF00CED1)
+            : const Color(0xFFFF4500);
         Color textColor = Colors.white;
-        IconData icon = isAtajo ? Icons.auto_awesome : Icons.warning_amber_rounded;
+        IconData icon = isAtajo
+            ? Icons.auto_awesome
+            : Icons.warning_amber_rounded;
         String title = isAtajo ? "FORTUNA" : "PELIGRO";
 
         if (isWin) {
@@ -1294,7 +1663,10 @@ class EventMessageOverlay extends StatelessWidget {
                     style: ElevatedButton.styleFrom(
                       backgroundColor: Colors.amber,
                       foregroundColor: Colors.black,
-                      padding: const EdgeInsets.symmetric(horizontal: 40, vertical: 15),
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 40,
+                        vertical: 15,
+                      ),
                       shape: const RoundedRectangleBorder(),
                     ),
                     onPressed: () {
@@ -1303,13 +1675,22 @@ class EventMessageOverlay extends StatelessWidget {
                       game.overlays.add('MainMenuOverlay');
                       game.overlays.remove('EventMessageOverlay');
                     },
-                    child: const Text("VOLVER AL MENÚ", style: TextStyle(fontWeight: FontWeight.bold, letterSpacing: 2)),
+                    child: const Text(
+                      "VOLVER AL MENÚ",
+                      style: TextStyle(
+                        fontWeight: FontWeight.bold,
+                        letterSpacing: 2,
+                      ),
+                    ),
                   )
                 else
                   OutlinedButton(
                     style: OutlinedButton.styleFrom(
                       side: BorderSide(color: accentColor),
-                      padding: const EdgeInsets.symmetric(horizontal: 40, vertical: 12),
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 40,
+                        vertical: 12,
+                      ),
                       shape: const RoundedRectangleBorder(),
                     ),
                     onPressed: () {
@@ -1344,10 +1725,10 @@ class InventoryButton extends StatelessWidget {
       listenable: game,
       builder: (context, _) {
         if (!game.isGameStarted) return const SizedBox.shrink();
-        
+
         // El botón solo debe ser interactuable en el turno del humano
         final isHumanTurn = !game.currentPlayer.isBot;
-        
+
         return Positioned(
           bottom: 20,
           right: 20,
@@ -1425,7 +1806,10 @@ class GameSummaryOverlay extends StatelessWidget {
               style: ElevatedButton.styleFrom(
                 backgroundColor: Colors.amber,
                 foregroundColor: Colors.black,
-                padding: const EdgeInsets.symmetric(horizontal: 50, vertical: 15),
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 50,
+                  vertical: 15,
+                ),
                 shape: const RoundedRectangleBorder(),
               ),
               onPressed: () {
@@ -1450,8 +1834,18 @@ class GameSummaryOverlay extends StatelessWidget {
       child: Row(
         mainAxisAlignment: MainAxisAlignment.spaceBetween,
         children: [
-          Text(label, style: const TextStyle(color: Colors.white70, fontSize: 13)),
-          Text(value, style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 15)),
+          Text(
+            label,
+            style: const TextStyle(color: Colors.white70, fontSize: 13),
+          ),
+          Text(
+            value,
+            style: const TextStyle(
+              color: Colors.white,
+              fontWeight: FontWeight.bold,
+              fontSize: 15,
+            ),
+          ),
         ],
       ),
     );
@@ -1527,7 +1921,10 @@ class CosmeticShopOverlay extends StatelessWidget {
             OutlinedButton(
               style: OutlinedButton.styleFrom(
                 side: const BorderSide(color: Colors.white24),
-                padding: const EdgeInsets.symmetric(horizontal: 40, vertical: 15),
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 40,
+                  vertical: 15,
+                ),
                 shape: const RoundedRectangleBorder(),
               ),
               onPressed: () => game.overlays.remove('CosmeticShopOverlay'),
@@ -1538,6 +1935,167 @@ class CosmeticShopOverlay extends StatelessWidget {
             ),
           ],
         ),
+      ),
+    );
+  }
+}
+
+// ─── Glosario de la Montaña ──────────────────────────────────────────────────
+class GlossaryOverlay extends StatelessWidget {
+  final RutaDeCenizasGame game;
+  const GlossaryOverlay({super.key, required this.game});
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      color: const Color(0xFF0A0A0A),
+      child: Center(
+        child: Container(
+          width: 500,
+          padding: const EdgeInsets.all(30),
+          child: Column(
+            children: [
+              const Text(
+                "GUÍA DEL ESCALADOR",
+                style: TextStyle(
+                  letterSpacing: 6,
+                  fontSize: 18,
+                  color: Colors.amber,
+                ),
+              ),
+              const SizedBox(height: 10),
+              const Text(
+                "Conocimiento esencial para sobrevivir a la ceniza.",
+                style: TextStyle(
+                  fontSize: 10,
+                  color: Colors.white38,
+                  letterSpacing: 1,
+                ),
+              ),
+              const SizedBox(height: 20),
+              const Divider(color: Colors.white10),
+              Expanded(
+                child: ListView(
+                  children: [
+                    _sectionTitle("CASILLAS"),
+                    _glossaryItem(
+                      Icons.terrain,
+                      Colors.grey,
+                      "BARRANCO",
+                      "Terreno inestable. Si caes aquí, deberás lanzar los dados (2D6) y retroceder esa cantidad de casillas. Pierdes integridad en el proceso.",
+                    ),
+                    _glossaryItem(
+                      Icons.trending_up,
+                      Colors.greenAccent,
+                      "ATAJO",
+                      "Una ruta más rápida. Te permite lanzar dados extra (2D6) para avanzar de inmediato.",
+                    ),
+                    _glossaryItem(
+                      Icons.menu_book,
+                      Colors.amber,
+                      "HISTORIA",
+                      "Restos de expediciones pasadas. Recuperas un poco de integridad y vuelves a lanzar el dado.",
+                    ),
+                    _glossaryItem(
+                      Icons.inventory_2,
+                      Colors.cyan,
+                      "OBJETOS",
+                      "Casillas que contienen herramientas útiles para tu ascenso.",
+                    ),
+                    const SizedBox(height: 20),
+                    _sectionTitle("OBJETOS"),
+                    _glossaryItem(
+                      Icons.hiking,
+                      Colors.orangeAccent,
+                      "ZAPATOS DE ESCALADA",
+                      "Permiten evitar un retroceso por barranco. Se consumen tras el uso.",
+                    ),
+                    _glossaryItem(
+                      Icons.gesture,
+                      Colors.purpleAccent,
+                      "LAZO DEL MALVADO",
+                      "Atrapa al jugador que va liderando y lo arrastra hasta tu posición actual.",
+                    ),
+                    _glossaryItem(
+                      Icons.shield,
+                      Colors.blueAccent,
+                      "VOLUNTAD DE LOS ANTIGUOS",
+                      "Protege contra efectos malintencionados, como el Lazo del Malvado.",
+                    ),
+                  ],
+                ),
+              ),
+              const SizedBox(height: 20),
+              OutlinedButton(
+                onPressed: () {
+                  game.overlays.add('MainMenuOverlay');
+                  game.overlays.remove('GlossaryOverlay');
+                },
+                child: const Text("VOLVER"),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _sectionTitle(String title) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 15),
+      child: Text(
+        title,
+        style: const TextStyle(
+          fontSize: 12,
+          letterSpacing: 4,
+          color: Colors.white54,
+          fontWeight: FontWeight.bold,
+        ),
+      ),
+    );
+  }
+
+  Widget _glossaryItem(IconData icon, Color color, String name, String desc) {
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 20),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Container(
+            padding: const EdgeInsets.all(10),
+            decoration: BoxDecoration(
+              color: color.withValues(alpha: 0.1),
+              borderRadius: BorderRadius.circular(8),
+            ),
+            child: Icon(icon, color: color, size: 24),
+          ),
+          const SizedBox(width: 15),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  name,
+                  style: TextStyle(
+                    color: color,
+                    fontWeight: FontWeight.bold,
+                    fontSize: 13,
+                    letterSpacing: 1,
+                  ),
+                ),
+                const SizedBox(height: 4),
+                Text(
+                  desc,
+                  style: const TextStyle(
+                    color: Colors.white70,
+                    fontSize: 11,
+                    height: 1.5,
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ],
       ),
     );
   }

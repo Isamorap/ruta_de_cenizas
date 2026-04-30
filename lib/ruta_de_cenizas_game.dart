@@ -20,6 +20,7 @@ class RutaDeCenizasGame extends FlameGame with KeyboardEvents, ChangeNotifier {
   List<PlayerState> players = [];
   int currentPlayerIndex = 0;
   bool isGameStarted = false;
+  bool isStoryMode = false;
   UserProfile userProfile = UserProfile();
 
   PlayerState get currentPlayer => players[currentPlayerIndex];
@@ -456,7 +457,7 @@ class RutaDeCenizasGame extends FlameGame with KeyboardEvents, ChangeNotifier {
       currentEventType = TileType.barranco;
       final msg = _barrancoMessages[_rand.nextInt(_barrancoMessages.length)];
       eventMessage =
-          "¡PELIGRO: BARRANCO!\n\n$msg\n\nSolo puedes evitar la caída si tienes 'Zapatos de Escalada' en tu inventario. Si no los tienes (o decides no usarlos), deberás lanzar los dados dobles (2D6) para determinar cuántas casillas retrocedes. Además, perderás integridad.";
+          "¡BARRANCO!\n\n$msg\n\nLanza los dados (2D6) para ver cuánto retrocedes.";
       notifyListeners();
       overlays.add('EventMessageOverlay');
       _automationBot();
@@ -468,7 +469,7 @@ class RutaDeCenizasGame extends FlameGame with KeyboardEvents, ChangeNotifier {
       currentEventType = TileType.atajo;
       final msg = _atajoMessages[_rand.nextInt(_atajoMessages.length)];
       eventMessage =
-          "¡FORTUNA: ATAJO!\n\n$msg\n\nHas encontrado una ruta más directa entre las rocas. Parece arriesgado, pero la suerte favorece a los audaces. Debes lanzar los dados dobles (2D6) para avanzar casillas extra de inmediato.";
+          "¡ATAJO!\n\n$msg\n\nLanza los dados (2D6) para avanzar casillas extra.";
       notifyListeners();
       overlays.add('EventMessageOverlay');
       _automationBot();
@@ -476,15 +477,15 @@ class RutaDeCenizasGame extends FlameGame with KeyboardEvents, ChangeNotifier {
     } else if (tile.type == TileType.historia) {
       _playSound('paper_sound.mp3');
       waitingForEventRoll = true;
-      dice.numDice = 1;
       currentEventType = TileType.historia;
-      String historiaText = "FRAGMENTO DE HISTORIA:\n\n${fragmentosHistoria[currentHistoryIndex]}";
-      if (!userProfile.hasSeenHistoriaTutorial) {
-        historiaText += "\n\nEstos restos son historia de otro escalador. No todos son reconfortantes, pero te dan una nueva oportunidad de avanzar y recuperas un poco de integridad. Vuelve a lanzar el dado.";
-        userProfile.hasSeenHistoriaTutorial = true;
-        userProfile.save();
-      } else {
+      dice.numDice = 1;
+      String historiaText;
+      
+      if (isStoryMode) {
+        historiaText = "FRAGMENTO DE HISTORIA:\n\n${fragmentosHistoria[currentHistoryIndex]}";
         historiaText += "\n\n(Recuperas integridad y vuelves a lanzar el dado).";
+      } else {
+        historiaText = "¡FRAGMENTO ENCONTRADO!\n\nHas hallado restos de una expedición pasada. Recuperas integridad y vuelves a lanzar el dado.";
       }
       
       eventMessage = historiaText;
@@ -535,7 +536,7 @@ class RutaDeCenizasGame extends FlameGame with KeyboardEvents, ChangeNotifier {
       );
 
       currentEventType = TileType.consumible;
-      eventMessage = "Has encontrado: $itemName.\n\n$itemDesc";
+      eventMessage = "Has encontrado: $itemName";
       notifyListeners();
       overlays.add('EventMessageOverlay');
 
@@ -938,6 +939,13 @@ class SunRayOverlay extends Component with HasGameReference<RutaDeCenizasGame> {
 
   @override
   void update(double dt) {
+    final progress = (game.cameraRowOffset / 27.0).clamp(0.0, 1.0);
+    if (progress >= 0.99) {
+      _opacity = 0;
+      _isFlashing = false;
+      return;
+    }
+
     if (!_isFlashing) {
       _timer += dt;
       if (_timer > 5.0 && _rand.nextDouble() < 0.01) {
@@ -957,22 +965,17 @@ class SunRayOverlay extends Component with HasGameReference<RutaDeCenizasGame> {
 
   @override
   void render(Canvas canvas) {
-    final progress = (game.cameraRowOffset / 27.0).clamp(0.0, 1.0);
-    final isSummit = progress >= 0.95;
-    
-    if (_opacity > 0 || isSummit) {
+    if (_opacity > 0) {
       final size = game.canvasSize.toSize();
-      final effectiveOpacity = isSummit ? 0.3 : _opacity;
-      
       final paint = Paint()
         ..shader = LinearGradient(
           begin: Alignment.topCenter,
           end: Alignment.bottomCenter,
           colors: [
-            Colors.white.withValues(alpha: effectiveOpacity),
+            Colors.white.withValues(alpha: _opacity),
             Colors.white.withValues(alpha: 0.0),
           ],
-        ).createShader(Rect.fromLTWH(0, 0, size.width, size.height * (isSummit ? 1.0 : 0.5)));
+        ).createShader(Rect.fromLTWH(0, 0, size.width, size.height * 0.5));
 
       canvas.drawRect(
         Rect.fromLTWH(0, 0, size.width, size.height * 0.5),
