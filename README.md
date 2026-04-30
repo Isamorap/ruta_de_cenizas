@@ -28,10 +28,10 @@ En este juego, cada paso es una decisión entre la esperanza y el abismo. Utiliz
 ### El Ascenso
 El movimiento se rige por el azar y la estrategia. Lanza los dados para avanzar, pero ten cuidado: la montaña es traicionera.
 
-- **Integridad (HP)**: Tu resistencia física. Caer por barrancos o el agotamiento constante reducirán tu salud. Si llega a cero, el frío te reclamará.
-- **Gestión de Turnos**: En el modo multijugador, la competencia es feroz. ¿Ayudarás a otros o usarás la montaña a tu favor?
+- **Integridad (HP)**: Tu resistencia física. Caer por barrancos te hará retroceder y perder integridad. Si llega a cero, el frío te reclamará.
+- **Gestión de Turnos**: En el modo multijugador, la competencia es feroz. ¿Ayudarás a otros? Yo digo que no.
 
-![Mecánicas de Juego](assets/images/readme/mechanics.png)
+![Mecánicas de Juego](assets/images/readme/mechanics.jpg)
 
 ### Los Peligros y la Suerte (Tipos de Casilla)
 | Casilla | Efecto |
