@@ -9,6 +9,10 @@ import 'models/user_profile.dart';
 import 'ruta_de_cenizas_game.dart';
 import 'package:flutter/gestures.dart';
 import 'package:url_launcher/url_launcher.dart';
+import 'package:http/http.dart' as http;
+import 'dart:convert';
+
+const String currentVersion = '0.0.5';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -75,16 +79,61 @@ void main() async {
   );
 }
 
-class MainMenuOverlay extends StatelessWidget {
+class MainMenuOverlay extends StatefulWidget {
   final RutaDeCenizasGame game;
   const MainMenuOverlay({super.key, required this.game});
 
   @override
+  State<MainMenuOverlay> createState() => _MainMenuOverlayState();
+}
+
+class _MainMenuOverlayState extends State<MainMenuOverlay> {
+  String? _newVersion;
+  String? _downloadUrl;
+  bool _showBanner = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _checkForUpdates();
+  }
+
+  Future<void> _checkForUpdates() async {
+    try {
+      // NOTA: Reemplazar esta URL con la que proporcione el usuario
+      const url =
+          'https://raw.githubusercontent.com/Isamorap/ruta_de_cenizas/main/version.json';
+      final response = await http.get(Uri.parse(url)).timeout(
+        const Duration(seconds: 10),
+      );
+
+      if (response.statusCode == 200) {
+        final data = json.decode(response.body);
+        final latestVersion = data['version'] as String;
+        final apkUrl = data['url'] as String;
+
+        // Comparamos versiones (puedes mejorar esto con un comparador semántico si es necesario)
+        if (latestVersion != currentVersion) {
+          if (mounted) {
+            setState(() {
+              _newVersion = latestVersion;
+              _downloadUrl = apkUrl;
+              _showBanner = true;
+            });
+          }
+        }
+      }
+    } catch (e) {
+      debugPrint("Error al verificar actualizaciones: $e");
+    }
+  }
+
+  @override
   Widget build(BuildContext context) {
     return ListenableBuilder(
-      listenable: game,
+      listenable: widget.game,
       builder: (context, _) {
-        final profile = game.userProfile;
+        final profile = widget.game.userProfile;
         return Stack(
           children: [
             Container(
@@ -112,7 +161,7 @@ class MainMenuOverlay extends StatelessWidget {
                       ),
                     ),
                     Text(
-                      "PreAlpha 0.0.2",
+                      "PreAlpha $currentVersion",
                       textAlign: TextAlign.center,
                       style: TextStyle(
                         fontSize: 12,
@@ -130,31 +179,129 @@ class MainMenuOverlay extends StatelessWidget {
                     ),
                     const SizedBox(height: 60),
                     _menuButton("HISTORIA", () {
-                      game.overlays.add('SoloSetupOverlay');
-                      game.overlays.remove('MainMenuOverlay');
+                      widget.game.overlays.add('SoloSetupOverlay');
+                      widget.game.overlays.remove('MainMenuOverlay');
                     }),
                     _menuButton("MULTIJUGADOR LOCAL", () {
-                      game.overlays.add('LobbyOverlay');
-                      game.overlays.remove('MainMenuOverlay');
+                      widget.game.overlays.add('LobbyOverlay');
+                      widget.game.overlays.remove('MainMenuOverlay');
                     }),
                     _menuButton("MULTIJUGADOR ONLINE", null), // Próximamente
                     _menuButton("CARRERA", () {
-                      game.overlays.add('ExtrasOverlay');
-                      game.overlays.remove('MainMenuOverlay');
+                      widget.game.overlays.add('ExtrasOverlay');
+                      widget.game.overlays.remove('MainMenuOverlay');
                     }),
                     _menuButton("GLOSARIO", () {
-                      game.overlays.add('GlossaryOverlay');
-                      game.overlays.remove('MainMenuOverlay');
+                      widget.game.overlays.add('GlossaryOverlay');
+                      widget.game.overlays.remove('MainMenuOverlay');
                     }),
                     _menuButton("ACERCA DE", () {
-                      game.overlays.add('SettingsOverlay');
-                      game.overlays.remove('MainMenuOverlay');
+                      widget.game.overlays.add('SettingsOverlay');
+                      widget.game.overlays.remove('MainMenuOverlay');
                     }),
                   ],
                 ),
               ),
             ),
-            // Mute button in the same position as Extras
+
+            // Banner de Actualización Elegante
+            if (_showBanner && _newVersion != null)
+              Positioned(
+                top: 0,
+                left: 0,
+                right: 0,
+                child: Container(
+                  padding: const EdgeInsets.symmetric(
+                    vertical: 12,
+                    horizontal: 20,
+                  ),
+                  decoration: BoxDecoration(
+                    color: Colors.amber.withValues(alpha: 0.9),
+                    boxShadow: [
+                      BoxShadow(
+                        color: Colors.black54,
+                        blurRadius: 10,
+                        offset: Offset(0, 2),
+                      ),
+                    ],
+                  ),
+                  child: SafeArea(
+                    bottom: false,
+                    child: Row(
+                      children: [
+                        Icon(Icons.system_update, color: Colors.black87),
+                        const SizedBox(width: 15),
+                        Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              Text(
+                                "¡Nueva versión disponible (v$_newVersion)!",
+                                style: TextStyle(
+                                  color: Colors.black87,
+                                  fontWeight: FontWeight.bold,
+                                  fontSize: 14,
+                                ),
+                              ),
+                              Text(
+                                "Hay cenizas frescas en la cima.",
+                                style: TextStyle(
+                                  color: Colors.black54,
+                                  fontSize: 12,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                        TextButton(
+                          onPressed: () => setState(() => _showBanner = false),
+                          child: Text(
+                            "DESPUÉS",
+                            style: TextStyle(
+                              color: Colors.black54,
+                              fontSize: 12,
+                              letterSpacing: 1,
+                            ),
+                          ),
+                        ),
+                        const SizedBox(width: 8),
+                        ElevatedButton(
+                          onPressed: () async {
+                            if (_downloadUrl != null) {
+                              final url = Uri.parse(_downloadUrl!);
+                              if (await canLaunchUrl(url)) {
+                                await launchUrl(
+                                  url,
+                                  mode: LaunchMode.externalApplication,
+                                );
+                              }
+                            }
+                          },
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: Colors.black87,
+                            foregroundColor: Colors.amber,
+                            elevation: 0,
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(4),
+                            ),
+                          ),
+                          child: Text(
+                            "DESCARGAR",
+                            style: TextStyle(
+                              fontSize: 12,
+                              fontWeight: FontWeight.bold,
+                              letterSpacing: 1,
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+              ),
+
+            // Mute button
             Positioned(
               top: 30,
               right: 30,
@@ -162,8 +309,8 @@ class MainMenuOverlay extends StatelessWidget {
                 onPressed: () {
                   profile.isMuted = !profile.isMuted;
                   profile.save();
-                  game.updateAudioVolume();
-                  game.notifyListeners(); // Trigger rebuild for ListenableBuilder
+                  widget.game.updateAudioVolume();
+                  widget.game.notifyListeners();
                 },
                 icon: Icon(
                   profile.isMuted ? Icons.volume_off : Icons.volume_up,
