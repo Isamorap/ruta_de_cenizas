@@ -95,7 +95,8 @@ Este proyecto explora las capacidades de **Flutter** para el desarrollo de juego
 
 Para jugar la versión más reciente en tu dispositivo Android, visita la sección de lanzamientos:
 
-👉 **[Descargar última versión (APK)](https://github.com/Isamorap/ruta_de_cenizas/releases/tag/Ruta_de_Cenizas)**
+👉 **[Descargar última versión (APK)](https://github.com/Isamorap/ruta_de_cenizas/releases)**
+👉 **[Link directo, pero te pierdes la lectura :'C (APK)](https://github.com/Isamorap/ruta_de_cenizas/releases/download/Ruta_de_Cenizas_0.0.6/Ruta_de_Cenizas_v0.0.6.apk)**
 
 ---
 
