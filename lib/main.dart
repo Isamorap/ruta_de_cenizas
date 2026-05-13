@@ -15,7 +15,7 @@ import 'package:url_launcher/url_launcher.dart';
 import 'package:http/http.dart' as http;
 import 'dart:convert';
 
-const String currentVersion = '0.0.5';
+const String currentVersion = '0.0.6';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -179,7 +179,7 @@ class _MainMenuOverlayState extends State<MainMenuOverlay> {
                       ),
                     ),
                     Text(
-                      "PreAlpha 0.0.2",
+                      "PreAlpha $currentVersion",
                       textAlign: TextAlign.center,
                       style: TextStyle(
                         fontSize: 12,
@@ -288,9 +288,22 @@ class _MainMenuOverlayState extends State<MainMenuOverlay> {
                           onPressed: () async {
                             if (_downloadUrl != null) {
                               final url = Uri.parse(_downloadUrl!);
-                              if (await canLaunchUrl(url)) {
-                                await launchUrl(
+                              try {
+                                // Intentamos abrir el link directo del APK
+                                bool launched = await launchUrl(
                                   url,
+                                  mode: LaunchMode.externalApplication,
+                                );
+                                if (!launched) {
+                                  throw 'No se pudo abrir el link directo';
+                                }
+                              } catch (e) {
+                                // Si falla, intentamos con la página de releases general
+                                final fallbackUrl = Uri.parse(
+                                  'https://github.com/Isamorap/ruta_de_cenizas/releases',
+                                );
+                                await launchUrl(
+                                  fallbackUrl,
                                   mode: LaunchMode.externalApplication,
                                 );
                               }
