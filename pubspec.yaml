@@ -41,6 +41,8 @@ dependencies:
   cloud_firestore: ^6.3.0
   google_fonts: ^8.0.2
   url_launcher: ^6.3.0
+  window_manager: ^0.4.3
+  http: ^1.2.0
 
 dev_dependencies:
   flutter_test:
