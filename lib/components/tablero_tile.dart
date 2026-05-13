@@ -5,7 +5,7 @@ import '../models/tile_type.dart';
 import '../models/item_type.dart';
 import '../utils/perspective_utils.dart';
 
-class TableroTile extends Component with HasGameReference<RutaDeCenizasGame> {
+class TableroTile extends PositionComponent with HasGameReference<RutaDeCenizasGame> {
   final int row;
   final double col;
   final TileType type;
@@ -26,6 +26,14 @@ class TableroTile extends Component with HasGameReference<RutaDeCenizasGame> {
     this.item,
     this.isRevealed = false,
   });
+
+  @override
+  void onMount() {
+    super.onMount();
+    // Establecer un tamaño grande para que el componente no sea descartado por 'culling'
+    // ya que usamos coordenadas absolutas proyectadas.
+    size = game.canvasSize;
+  }
 
   @override
   void render(Canvas canvas) {
@@ -111,6 +119,7 @@ class TableroTile extends Component with HasGameReference<RutaDeCenizasGame> {
     if (isRevealed && type == TileType.consumible && !itemCollected && item != null) {
       _drawItemIcon(canvas, p1, p2, p3, p4);
     }
+
   }
 
   void _drawItemIcon(Canvas canvas, Offset p1, Offset p2, Offset p3, Offset p4) {

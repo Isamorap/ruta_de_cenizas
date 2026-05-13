@@ -20,6 +20,17 @@ const List<CharacterData> kCharacters = [
   CharacterData('char7', 'El Ermitaño',  Color(0xFF7F8C8D), Icons.elderly),
 ];
 
+const List<Color> kAvailableColors = [
+  Color(0xFFE8E8E8), // Blanco/Plata
+  Color(0xFFE74C3C), // Rojo
+  Color(0xFF3498DB), // Azul
+  Color(0xFF2ECC71), // Verde
+  Color(0xFFF1C40F), // Amarillo
+  Color(0xFF9B59B6), // Púrpura
+  Color(0xFFE67E22), // Naranja
+  Color(0xFF1ABC9C), // Turquesa
+];
+
 CharacterData characterById(String id) {
   return kCharacters.firstWhere(
     (c) => c.id == id,

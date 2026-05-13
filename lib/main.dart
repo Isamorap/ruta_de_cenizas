@@ -1,6 +1,9 @@
 import 'package:flame/game.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:flutter/foundation.dart';
+import 'dart:io';
+import 'package:window_manager/window_manager.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'models/tile_type.dart';
 import 'models/player_state.dart';
@@ -12,6 +15,21 @@ import 'package:url_launcher/url_launcher.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
+
+  if (!kIsWeb && Platform.isLinux) {
+    await windowManager.ensureInitialized();
+    WindowOptions windowOptions = const WindowOptions(
+      size: Size(450, 800), // Proporción 9:16 para capturas verticales.
+      center: true,
+      title: "Ruta de Cenizas - Recording Mode",
+    );
+    windowManager.waitUntilReadyToShow(windowOptions, () async {
+      await windowManager.show();
+      await windowManager.focus();
+      await windowManager.setAspectRatio(9 / 16);
+    });
+  }
+
   SystemChrome.setEnabledSystemUIMode(SystemUiMode.immersiveSticky);
 
   final profile = await UserProfile.load();
@@ -112,7 +130,7 @@ class MainMenuOverlay extends StatelessWidget {
                       ),
                     ),
                     Text(
-                      "PreAlpha 0.0.2",
+                      "PreAlpha 0.0.5",
                       textAlign: TextAlign.center,
                       style: TextStyle(
                         fontSize: 12,
@@ -220,6 +238,7 @@ class _LobbyOverlayState extends State<LobbyOverlay> {
   bool _isConfiguring = false;
   late List<TextEditingController> _nameCtrls;
   late List<int> _selectedChars;
+  late List<Color> _selectedColors;
 
   @override
   void initState() {
@@ -231,6 +250,7 @@ class _LobbyOverlayState extends State<LobbyOverlay> {
       ),
     );
     _selectedChars = List.generate(4, (i) => i);
+    _selectedColors = List.generate(4, (i) => kCharacters[i % kCharacters.length].color);
   }
 
   @override
@@ -367,7 +387,7 @@ class _LobbyOverlayState extends State<LobbyOverlay> {
                   name: _nameCtrls[i].text.trim().isEmpty
                       ? "Jugador ${i + 1}"
                       : _nameCtrls[i].text.trim(),
-                  color: char.color,
+                  color: _selectedColors[i],
                   characterId: char.id,
                   isBot: false,
                 );
@@ -434,6 +454,7 @@ class _LobbyOverlayState extends State<LobbyOverlay> {
                   width: 50,
                   height: 50,
                   decoration: BoxDecoration(
+                    color: char.color.withValues(alpha: 0.2),
                     shape: BoxShape.circle,
                     border: Border.all(color: char.color, width: 1.5),
                   ),
@@ -459,6 +480,46 @@ class _LobbyOverlayState extends State<LobbyOverlay> {
                 ),
               ),
             ],
+          ),
+          const SizedBox(height: 15),
+          // Selector de Color para este jugador
+          SizedBox(
+            height: 24,
+            child: Row(
+              children: [
+                const Text(
+                  "COLOR:",
+                  style: TextStyle(fontSize: 8, color: Colors.white24, letterSpacing: 1),
+                ),
+                const SizedBox(width: 10),
+                Expanded(
+                  child: ListView.separated(
+                    scrollDirection: Axis.horizontal,
+                    itemCount: kAvailableColors.length,
+                    separatorBuilder: (_, __) => const SizedBox(width: 8),
+                    itemBuilder: (context, colorIndex) {
+                      final color = kAvailableColors[colorIndex];
+                      final isSelected = _selectedColors[i] == color;
+                      return GestureDetector(
+                        onTap: () => setState(() => _selectedColors[i] = color),
+                        child: Container(
+                          width: 20,
+                          height: 20,
+                          decoration: BoxDecoration(
+                            color: color,
+                            shape: BoxShape.circle,
+                            border: Border.all(
+                              color: isSelected ? Colors.white : Colors.transparent,
+                              width: 1.5,
+                            ),
+                          ),
+                        ),
+                      );
+                    },
+                  ),
+                ),
+              ],
+            ),
           ),
         ],
       ),
@@ -623,11 +684,13 @@ class SoloSetupOverlay extends StatefulWidget {
 
 class _SoloSetupOverlayState extends State<SoloSetupOverlay> {
   int _selectedChar = 0;
+  late Color _customColor;
   late final TextEditingController _nameCtrl;
 
   @override
   void initState() {
     super.initState();
+    _customColor = kCharacters[_selectedChar].color;
     _nameCtrl = TextEditingController(text: widget.game.userProfile.name);
   }
 
@@ -721,6 +784,52 @@ class _SoloSetupOverlayState extends State<SoloSetupOverlay> {
               ),
               const SizedBox(height: 35),
 
+              // ── Selector de Color ──────────────────────────
+              const Text(
+                'COLOR DE FICHA',
+                style: TextStyle(
+                  letterSpacing: 2,
+                  fontSize: 10,
+                  color: Colors.white24,
+                ),
+              ),
+              const SizedBox(height: 15),
+              SizedBox(
+                width: 320,
+                child: Wrap(
+                  alignment: WrapAlignment.center,
+                  spacing: 10,
+                  runSpacing: 10,
+                  children: kAvailableColors.map((color) {
+                    final isSelected = _customColor == color;
+                    return GestureDetector(
+                      onTap: () => setState(() => _customColor = color),
+                      child: Container(
+                        width: 32,
+                        height: 32,
+                        decoration: BoxDecoration(
+                          color: color,
+                          shape: BoxShape.circle,
+                          border: Border.all(
+                            color: isSelected ? Colors.white : Colors.white10,
+                            width: isSelected ? 2 : 1,
+                          ),
+                          boxShadow: isSelected
+                              ? [
+                                  BoxShadow(
+                                    color: color.withValues(alpha: 0.5),
+                                    blurRadius: 10,
+                                  ),
+                                ]
+                              : null,
+                        ),
+                      ),
+                    );
+                  }).toList(),
+                ),
+              ),
+              const SizedBox(height: 35),
+
               // ── Nombre del jugador ─────────────────────────
               SizedBox(
                 width: 260,
@@ -766,7 +875,7 @@ class _SoloSetupOverlayState extends State<SoloSetupOverlay> {
                   final players = [
                     PlayerState(
                       name: name,
-                      color: char.color,
+                      color: _customColor,
                       characterId: char.id,
                       isBot: false,
                     ),
@@ -1693,13 +1802,7 @@ class EventMessageOverlay extends StatelessWidget {
                       ),
                       shape: const RoundedRectangleBorder(),
                     ),
-                    onPressed: () {
-                      game.eventMessage = null;
-                      if (isConsumible) {
-                        game.endTurnExternal();
-                      }
-                      game.overlays.remove('EventMessageOverlay');
-                    },
+                    onPressed: () => game.dismissEvent(),
                     child: Text(
                       "CONTINUAR",
                       style: TextStyle(color: accentColor, letterSpacing: 2),

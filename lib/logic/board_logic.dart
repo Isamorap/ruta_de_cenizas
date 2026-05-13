@@ -95,12 +95,19 @@ class BoardLogic {
     }
 
     if (isStoryMode) {
-      normalIndices.shuffle(_rand);
-      // Increased frequency in story mode to avoid frustration
+      normalIndices.sort();
+
       final historyCount = min(15, normalIndices.length);
+      double step = normalIndices.length / historyCount;
+      List<int> selectedIndices = [];
+
       for (int i = 0; i < historyCount; i++) {
-        int idx = normalIndices.removeLast();
+        selectedIndices.add(normalIndices[(i * step).toInt()]);
+      }
+
+      for (var idx in selectedIndices) {
         board[idx] = board[idx].copyWith(type: TileType.historia);
+        normalIndices.remove(idx);
       }
     }
 

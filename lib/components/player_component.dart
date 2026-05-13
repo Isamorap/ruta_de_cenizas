@@ -5,9 +5,10 @@ import '../utils/perspective_utils.dart';
 import '../models/player_state.dart';
 import '../models/character_data.dart';
 
-class PlayerComponent extends Component with HasGameReference<RutaDeCenizasGame> {
+class PlayerComponent extends Component
+    with HasGameReference<RutaDeCenizasGame> {
   final PlayerState playerState;
-  
+
   Vector2? _visualPos;
   double _visualScale = 1.0;
   final List<int> _moveQueue = [];
@@ -18,7 +19,10 @@ class PlayerComponent extends Component with HasGameReference<RutaDeCenizasGame>
   PlayerComponent({required this.playerState});
 
   double get visualRow {
-    final tile = game.tiles.firstWhere((t) => t.index == _currentPathIndex, orElse: () => game.tiles.first);
+    final tile = game.tiles.firstWhere(
+      (t) => t.index == _currentPathIndex,
+      orElse: () => game.tiles.first,
+    );
     return tile.row.toDouble();
   }
 
@@ -29,7 +33,9 @@ class PlayerComponent extends Component with HasGameReference<RutaDeCenizasGame>
 
     // Handle movement queue
     if (_moveQueue.isEmpty && _currentPathIndex != state.currentIndex) {
-      int diff = state.currentIndex - (_currentPathIndex == -1 ? state.currentIndex : _currentPathIndex);
+      int diff =
+          state.currentIndex -
+          (_currentPathIndex == -1 ? state.currentIndex : _currentPathIndex);
       if (diff.abs() > 0 && diff.abs() <= 12) {
         int sign = diff.sign;
         for (int i = 1; i <= diff.abs(); i++) {
@@ -43,24 +49,78 @@ class PlayerComponent extends Component with HasGameReference<RutaDeCenizasGame>
     if (_moveQueue.isNotEmpty) {
       _moveCooldown -= dt * state.moveSpeedMultiplier;
       if (_moveCooldown <= 0) {
+        final oldIndex = _currentPathIndex;
         _currentPathIndex = _moveQueue.removeAt(0);
         _moveCooldown = 0.4; // Time per tile
-        
+
+        // Si estamos retrocediendo, perdemos integridad
+        if (_currentPathIndex < oldIndex) {
+          playerState.health -= 3;
+          if (playerState.health < 0) playerState.health = 0;
+          game.notifyListeners();
+        }
+
         // Mark as visited
-        game.tiles.firstWhere((t) => t.index == _currentPathIndex).isVisited = true;
-        
+        game.tiles.firstWhere((t) => t.index == _currentPathIndex).isVisited =
+            true;
+
         if (_moveQueue.isEmpty) {
-          game.tiles.firstWhere((t) => t.index == _currentPathIndex).isRevealed = true;
+          game.tiles
+                  .firstWhere((t) => t.index == _currentPathIndex)
+                  .isRevealed =
+              true;
           // Restore speed
           state.moveSpeedMultiplier = 1.0;
           // Only trigger event if this is the CURRENT player
-          if (game.players[game.currentPlayerIndex] == playerState) {
+          if (game.players[game.currentPlayerIndex] == playerState &&
+              game.isMoving) {
             game.onPlayerMovementFinished();
           }
         }
       }
     } else if (_currentPathIndex == -1) {
       _currentPathIndex = state.currentIndex;
+    }
+
+    // Interpolate visual position
+    final screenSize = game.canvasSize.toSize();
+    final offset = game.cameraRowOffset;
+    final targetTile = game.tiles.firstWhere(
+      (t) => t.index == _currentPathIndex,
+      orElse: () => game.tiles.first,
+    );
+
+    // Add a slight offset based on player index to avoid stacking exactly on top of each other
+    int pIndex = game.players.indexOf(playerState);
+    double colOffset = targetTile.col;
+    if (pIndex == 0) colOffset -= 0.2;
+    if (pIndex == 1) colOffset += 0.2;
+    if (pIndex == 2) colOffset -= 0.1;
+    if (pIndex == 3) colOffset += 0.1;
+
+    final targetPos = PerspectiveUtils.project(
+      targetTile.row.toDouble(),
+      colOffset,
+      screenSize,
+      cameraRowOffset: offset,
+    );
+    final targetScale = PerspectiveUtils.getScale(
+      targetTile.row.toDouble(),
+      cameraRowOffset: offset,
+    );
+
+    if (_visualPos == null) {
+      _visualPos = Vector2(targetPos.dx, targetPos.dy);
+      _visualScale = targetScale;
+    } else {
+      double lerpFactor = 10 * dt;
+      _visualPos!.x = game.lerp(lerpFactor, _visualPos!.x, targetPos.dx);
+      _visualPos!.y = game.lerp(lerpFactor, _visualPos!.y, targetPos.dy);
+      _visualScale = game.lerp(lerpFactor, _visualScale, targetScale);
+
+      if (_moveQueue.isNotEmpty || _moveCooldown > 0) {
+        _dust.add(_DustParticle(Offset(_visualPos!.x, _visualPos!.y)));
+      }
     }
 
     // Update dialog timer
@@ -71,36 +131,6 @@ class PlayerComponent extends Component with HasGameReference<RutaDeCenizasGame>
       }
     }
 
-    // Interpolate visual position
-    final screenSize = game.canvasSize.toSize();
-    final offset = game.cameraRowOffset;
-    final targetTile = game.tiles.firstWhere((t) => t.index == _currentPathIndex);
-    
-    // Add a slight offset based on player index to avoid stacking exactly on top of each other
-    int pIndex = game.players.indexOf(playerState);
-    double colOffset = targetTile.col;
-    if (pIndex == 0) colOffset -= 0.2;
-    if (pIndex == 1) colOffset += 0.2;
-    if (pIndex == 2) colOffset -= 0.1;
-    if (pIndex == 3) colOffset += 0.1;
-
-    final targetPos = PerspectiveUtils.project(targetTile.row.toDouble(), colOffset, screenSize, cameraRowOffset: offset);
-    final targetScale = PerspectiveUtils.getScale(targetTile.row.toDouble(), cameraRowOffset: offset);
-
-    if (_visualPos == null) {
-      _visualPos = Vector2(targetPos.dx, targetPos.dy);
-      _visualScale = targetScale;
-    } else {
-      double lerpFactor = 10 * dt;
-      _visualPos!.x = game.lerp(lerpFactor, _visualPos!.x, targetPos.dx);
-      _visualPos!.y = game.lerp(lerpFactor, _visualPos!.y, targetPos.dy);
-      _visualScale = game.lerp(lerpFactor, _visualScale, targetScale);
-      
-      if (_moveQueue.isNotEmpty || _moveCooldown > 0) {
-        _dust.add(_DustParticle(Offset(_visualPos!.x, _visualPos!.y)));
-      }
-    }
-    
     for (final d in _dust) {
       d.update(dt);
     }
@@ -128,9 +158,8 @@ class PlayerComponent extends Component with HasGameReference<RutaDeCenizasGame>
       shadowPaint,
     );
 
-    // Círculo de fondo con el color del personaje
-    final bgPaint = Paint()
-      ..color = char.color.withValues(alpha: 0.65);
+    // Círculo de fondo con el color del personaje (personalizado)
+    final bgPaint = Paint()..color = playerState.color.withValues(alpha: 0.65);
     canvas.drawCircle(
       Offset(_visualPos!.x, _visualPos!.y - size * 0.6),
       size * 0.65,
@@ -139,7 +168,7 @@ class PlayerComponent extends Component with HasGameReference<RutaDeCenizasGame>
 
     // Borde del círculo
     final borderPaint = Paint()
-      ..color = char.color
+      ..color = playerState.color
       ..style = PaintingStyle.stroke
       ..strokeWidth = 2.0 * _visualScale;
     canvas.drawCircle(
@@ -198,8 +227,16 @@ class PlayerComponent extends Component with HasGameReference<RutaDeCenizasGame>
     );
 
     // Bubble background
-    canvas.drawRRect(bubbleRect, Paint()..color = Colors.black.withValues(alpha: 0.8));
-    canvas.drawRRect(bubbleRect, Paint()..color = playerState.color.withValues(alpha: 0.3)..style = PaintingStyle.stroke);
+    canvas.drawRRect(
+      bubbleRect,
+      Paint()..color = Colors.black.withValues(alpha: 0.8),
+    );
+    canvas.drawRRect(
+      bubbleRect,
+      Paint()
+        ..color = playerState.color.withValues(alpha: 0.3)
+        ..style = PaintingStyle.stroke,
+    );
 
     // Little triangle
     final path = Path()
@@ -208,7 +245,10 @@ class PlayerComponent extends Component with HasGameReference<RutaDeCenizasGame>
       ..lineTo(pos.x, pos.y - charSize);
     canvas.drawPath(path, Paint()..color = Colors.black.withValues(alpha: 0.8));
 
-    tp.paint(canvas, Offset(pos.x - tp.width / 2, pos.y - charSize - tp.height - 18));
+    tp.paint(
+      canvas,
+      Offset(pos.x - tp.width / 2, pos.y - charSize - tp.height - 18),
+    );
   }
 }
 
@@ -217,7 +257,8 @@ class _DustParticle {
   double life = 1.0;
   final Offset velocity;
 
-  _DustParticle(this.pos) : velocity = Offset((DateTime.now().millisecond % 20 - 10) / 10, -0.5);
+  _DustParticle(this.pos)
+    : velocity = Offset((DateTime.now().millisecond % 20 - 10) / 10, -0.5);
 
   void update(double dt) {
     pos += velocity;
@@ -225,6 +266,10 @@ class _DustParticle {
   }
 
   void render(Canvas canvas) {
-    canvas.drawCircle(pos, 2, Paint()..color = Colors.white.withValues(alpha: life * 0.3));
+    canvas.drawCircle(
+      pos,
+      2,
+      Paint()..color = Colors.white.withValues(alpha: life * 0.3),
+    );
   }
 }

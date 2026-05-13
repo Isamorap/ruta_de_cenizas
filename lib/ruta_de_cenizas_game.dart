@@ -14,9 +14,11 @@ import 'logic/board_logic.dart';
 import 'models/player_state.dart';
 import 'components/dice_component.dart';
 import 'components/player_component.dart';
+import 'components/beast_component.dart';
 import 'models/user_profile.dart';
 
-class RutaDeCenizasGame extends FlameGame with KeyboardEvents, ChangeNotifier {
+class RutaDeCenizasGame extends FlameGame
+    with TapCallbacks, KeyboardEvents, ChangeNotifier {
   List<PlayerState> players = [];
   int currentPlayerIndex = 0;
   bool isGameStarted = false;
@@ -61,16 +63,21 @@ class RutaDeCenizasGame extends FlameGame with KeyboardEvents, ChangeNotifier {
   ];
 
   final List<String> fragmentosHistoria = [
-    "Día 1. El peso de la mochila no es nada comparado con el frío que sube por mis piernas. La ceniza lo cubre todo, como un manto de olvido.",
-    "Día 4. He perdido el rastro del viejo camino. Otros lo intentaron antes; he visto sus huellas petrificadas. Todos miraban hacia arriba.",
-    "Día 9. El aire sabe a metal y azufre. Dicen que en la cima el cielo es azul, pero ya no recuerdo cómo se ve el color azul.",
-    "He encontrado un zapato de niño medio enterrado. Me pregunto si quien lo llevaba logró ver la luz del sol una última vez.",
-    "La soledad aquí arriba tiene voz. Susurra promesas de descanso, pero si me detengo, la ceniza me convertirá en parte de la montaña.",
-    "Día 15. Mis manos sangran, pero la piedra aquí arriba es distinta. Es más cálida. Estoy cerca del corazón del volcán.",
-    "Vi un destello entre las nubes negras. Un rayo de luz real. Hacía años que no lloraba, pero mis lágrimas se secaron antes de caer.",
-    "Ya no siento mis pies. Camino por inercia. Solo el pensamiento de que él me espera en el refugio me mantiene erguido.",
-    "La pendiente es casi vertical ahora. El viento aúlla como un animal herido. He dejado atrás todo lo que poseía, excepto mi esperanza.",
-    "Si alguien encuentra este diario... no mires hacia abajo. La luz está ahí, a solo unos pasos. No te detengas.",
+    "El Inicio: La Era del Sol\n\n\"Hubo un tiempo donde el cielo era un lienzo azul infinito. No valorábamos la luz porque pensábamos que era eterna. Esa fue nuestra primera falta.\"",
+    "Conflicto: Vientos de Hierro\n\n\"La diplomacia murió en el frío invierno. Las naciones dejaron de hablar con palabras y empezaron a hablar con uranio y acero.\"",
+    "Desastre: El Gran Incendio\n\n\"No fueron bombas lo que destruyó los bosques, sino el 'Fuego Químico'. Una sustancia diseñada para no apagarse nunca. El mundo ardió por dentro.\"",
+    "Consecuencia: Manto de Muerte\n\n\"La ceniza no tardó en llegar. Primero fueron los pulmones de los débiles, luego las cosechas, y finalmente, la esperanza de volver a ver una estrella.\"",
+    "Supervivencia: Éxodo Vertical\n\n\"Cuando las llanuras se volvieron cementerios de polvo, la mirada de los pocos que quedamos se dirigió hacia arriba. Solo las cumbres ofrecían una tregua.\"",
+    "Misterio: El Proyecto Arca\n\n\"Escuché grabaciones de radio sobre búnkeres en las cimas. Decían que allí se guardaba el código genético de lo que alguna vez fue verde. Nunca los encontramos.\"",
+    "Terror: Sombras Vivientes\n\n\"La ceniza no es solo residuo, es reactiva. Los animales que no murieron... cambiaron. Sus ojos ahora brillan con un hambre que no es de este mundo.\"",
+    "La Bestia: El Guardián\n\n\"He visto a la Bestia de las Cenizas de cerca. No es un animal, parece una amalgama de metal viejo y odio. Se asegura de que nadie abandone el purgatorio de la base.\"",
+    "Pérdida: El Silencio de las Máquinas\n\n\"Hoy dejó de funcionar el último satélite. La tecnología de nuestros antepasados es ahora solo chatarra que nos recuerda lo mucho que hemos caído.\"",
+    "Desesperanza: Hambre de Espíritu\n\n\"Ya no peleamos por ideologías, peleamos por un poco de agua filtrada. El lazo del malvado no es un arma, es el símbolo de nuestra desesperación.\"",
+    "Revelación: Las Cumbres Grises\n\n\"A esta altura, el viento aúlla canciones de guerra. Es como si la montaña misma recordara los gritos de los que intentaron subir antes que yo.\"",
+    "Sacrificio: Huellas de Sangre\n\n\"Encontré un campamento. Estaba vacío, pero los suministros estaban intactos. Alguien prefirió morir de frío antes que seguir robando a otros escaladores.\"",
+    "Cercanía: La Barrera de Nubes\n\n\"Estoy atravesando el manto negro. Mis manos están cubiertas de hollín, pero por primera vez en años, siento que el aire no quema mis pulmones al respirar.\"",
+    "Fe: El Calor del Sol\n\n\"Vi un destello naranja entre las nubes. No es fuego de guerra, es el Sol. Existe. Sigue ahí. Esperándonos para que lo volvamos a reclamar.\"",
+    "El Legado: La Última Estación\n\n\"Si logras llegar aquí, no mires atrás. La ceniza se quedará abajo, pero lleva contigo la lección: la cima no es para ser dueño del mundo, sino para cuidarlo.\"",
   ];
 
   int currentHistoryIndex = 0;
@@ -79,15 +86,20 @@ class RutaDeCenizasGame extends FlameGame with KeyboardEvents, ChangeNotifier {
   final math.Random _rand = math.Random();
   @override
   Color backgroundColor() {
-    if (!isGameStarted) return const Color(0xFF0A0A0A); // Casi negro, permite ver partículas
+    if (!isGameStarted)
+      return const Color(0xFF0A0A0A); // Casi negro, permite ver partículas
     final progress = (cameraRowOffset / 27.0).clamp(0.0, 1.0);
-    
+
     if (progress >= 0.99) {
       return const Color(0xFF87CEEB); // Sky Blue (vibrante)
     }
-    
+
     // De negro absoluto a un azul de madrugada/claro al subir
-    return Color.lerp(const Color(0xFF0A0A0A), const Color(0xFF1B263B), progress) ??
+    return Color.lerp(
+          const Color(0xFF0A0A0A),
+          const Color(0xFF1B263B),
+          progress,
+        ) ??
         const Color(0xFF0A0A0A);
   }
 
@@ -105,24 +117,23 @@ class RutaDeCenizasGame extends FlameGame with KeyboardEvents, ChangeNotifier {
         surfaceColor: data.surfaceColor,
         item: data.item,
       );
-      tile.priority =
-          100 - data.row; // Closer rows (lower index) rendered on top
+
+      tile.priority = 100 - data.row;
       tiles.add(tile);
       add(tile);
     }
 
-    // Reveal starting tile
     _getTileAtIndex(1)?.isRevealed = true;
 
-    dice.position = Vector2((canvasSize.x - 130) / 2, canvasSize.y - 80);
-    dice.priority = 400; // Above everything visual
+    dice.position = Vector2((canvasSize.x - 180) / 2, canvasSize.y - 100);
+    dice.priority = 400;
     add(dice);
 
     add(SunRayOverlay()..priority = 350);
-    add(AshFogOverlay()..priority = 300); // Above player and tiles
+    add(AshFogOverlay()..priority = 300);
 
-    add(MiniMapComponent()..priority = 500); // Top layer HUD
-    add(IntegridadBarComponent()..priority = 500); // Top layer HUD
+    add(MiniMapComponent()..priority = 500);
+    add(IntegridadBarComponent()..priority = 500);
 
     try {
       await FlameAudio.audioCache.loadAll([
@@ -141,7 +152,6 @@ class RutaDeCenizasGame extends FlameGame with KeyboardEvents, ChangeNotifier {
   }
 
   void startGame(List<PlayerState> newPlayers) {
-    // Reset board and players
     children.whereType<PlayerComponent>().forEach((p) => p.removeFromParent());
     children.whereType<TableroTile>().forEach((t) => t.removeFromParent());
     tiles.clear();
@@ -198,9 +208,6 @@ class RutaDeCenizasGame extends FlameGame with KeyboardEvents, ChangeNotifier {
     if (!isGameStarted || dice.isRolling || isMoving || eventMessage != null)
       return;
 
-    print(
-      "Iniciando rollAndMove de ${currentPlayer.name}. Esperando evento: $waitingForEventRoll",
-    );
     eventMessage = null;
 
     final isTwoDiceEvent =
@@ -209,8 +216,8 @@ class RutaDeCenizasGame extends FlameGame with KeyboardEvents, ChangeNotifier {
         currentEventType != TileType.consumible;
     final wasWaitingForEvent = waitingForEventRoll;
     final eventType = currentEventType;
-    waitingForEventRoll = false; 
-    
+    waitingForEventRoll = false;
+
     dice.roll(diceCount: isTwoDiceEvent ? 2 : 1);
     _playSound('dice_roll.mp3', volume: 0.5);
     notifyListeners();
@@ -242,8 +249,6 @@ class RutaDeCenizasGame extends FlameGame with KeyboardEvents, ChangeNotifier {
     notifyListeners();
 
     if (steps < 0) {
-      currentPlayer.health += (steps * 5); // steps is negative
-      if (currentPlayer.health < 0) currentPlayer.health = 0;
       sessionTilesLost += steps.abs();
     }
 
@@ -263,76 +268,112 @@ class RutaDeCenizasGame extends FlameGame with KeyboardEvents, ChangeNotifier {
   }
 
   void onPlayerMovementFinished() {
-    isMoving = false;
-    notifyListeners();
+    // Mantenemos isMoving en true durante el pequeño retardo para bloquear acciones
+    Future.delayed(const Duration(milliseconds: 500), () {
+      isMoving = false;
+      notifyListeners();
 
-    if (currentPlayer.health <= 0) {
-      _triggerGameOver();
-      return;
-    }
+      if (currentPlayer.health <= 0) {
+        _triggerBeastAnimation();
+        return;
+      }
 
-    if (currentPlayer.currentIndex == tiles.length) {
-      _triggerWin();
-      return;
-    }
+      if (currentPlayer.currentIndex == tiles.length) {
+        _triggerWin();
+        return;
+      }
 
-    final currentTile = _getTileAtIndex(currentPlayer.currentIndex);
-    if (currentTile != null) {
-      currentTile.isRevealed = true;
-      
-      // Si es una casilla normal, el turno termina.
-      // Si es una especial pero NO se dispara efecto (ej: item ya recolectado), también debe terminar.
-      bool eventTriggered = _resolveTileEffect(currentTile);
-      
-      if (currentTile.type == TileType.normal || !eventTriggered) {
-        dice.numDice = 1;
+      final currentTile = _getTileAtIndex(currentPlayer.currentIndex);
+      if (currentTile != null) {
+        currentTile.isRevealed = true;
+
+        bool eventTriggered = _resolveTileEffect(currentTile);
+
+        if (currentTile.type == TileType.normal || !eventTriggered) {
+          dice.numDice = 1;
+          _endTurn();
+        }
+      } else {
         _endTurn();
       }
-    } else {
-      _endTurn();
-    }
+    });
   }
 
   void _endTurn() {
     if (!waitingForEventRoll) {
       currentPlayerIndex = (currentPlayerIndex + 1) % players.length;
-      print("Turno de: ${currentPlayer.name} (Bot: ${currentPlayer.isBot})");
       notifyListeners();
       sessionTurns++;
 
-      // Si el siguiente jugador es un Bot, programar su movimiento
       if (currentPlayer.isBot && isGameStarted) {
-        Future.delayed(const Duration(seconds: 2), () {
-          if (isGameStarted &&
-              currentPlayer.isBot &&
-              !isMoving &&
-              !dice.isRolling) {
-            rollAndMove();
-          }
-        });
+        _performBotAI();
       }
     }
   }
 
-  void _triggerGameOver() {
-    eventMessage = "${currentPlayer.name} ha caído exhausto.";
-    Future.delayed(const Duration(seconds: 3), () {
-      currentPlayer.reset();
-      eventMessage = null;
-      _endTurn();
-      notifyListeners();
+  bool _botActionPending = false;
+  void _performBotAI() {
+    if (!currentPlayer.isBot || !isGameStarted || isMoving || dice.isRolling || eventMessage != null || _botActionPending)
+      return;
+
+    _botActionPending = true;
+    Future.delayed(const Duration(milliseconds: 800), () {
+      _botActionPending = false;
+      if (!isGameStarted || !currentPlayer.isBot || eventMessage != null || isMoving || dice.isRolling)
+        return;
+
+      if (currentPlayer.lazoDelMalvadoCount > 0) {
+        PlayerState? leader;
+        int maxIndex = -1;
+        for (var p in players) {
+          if (p.currentIndex > maxIndex) {
+            maxIndex = p.currentIndex;
+            leader = p;
+          }
+        }
+
+        if (leader != null &&
+            leader != currentPlayer &&
+            (leader.currentIndex - currentPlayer.currentIndex) > 10) {
+          requestUseLazo();
+          return;
+        }
+      }
+
+      if (eventMessage == null) {
+        rollAndMove();
+      }
     });
+  }
+
+  void _triggerBeastAnimation() {
+    eventMessage =
+        "LA INTEGRIDAD SE HA DESVANECIDO.\n\nLa Bestia de las Cenizas huele tu cansancio, tu debilidad... y viene a reclamar lo que queda de ti.";
+    _playSound('fall.mp3');
+    notifyListeners();
+
+    add(
+      BeastComponent(
+        targetPlayer: currentPlayer,
+        onFinished: () {
+          currentPlayer.reset();
+          eventMessage = null;
+          _endTurn();
+          notifyListeners();
+        },
+      )..priority = 1000,
+    );
   }
 
   void _triggerWin() {
     eventMessage =
         "¡${currentPlayer.name.toUpperCase()} HA CONQUISTADO LA CIMA!\n\nNo hay tanto oxígeno aquí arriba... pero el aire es respirable. Has escapado de las cenizas.";
     _playSound('win.mp3');
-    
+
     // Victory dialogue
     currentPlayer.currentDialog = "¡Lo logré! El aire... es tan puro...";
     currentPlayer.dialogTimer = 10.0;
-    
+
     notifyListeners();
 
     // Show summary after 5 seconds
@@ -367,6 +408,12 @@ class RutaDeCenizasGame extends FlameGame with KeyboardEvents, ChangeNotifier {
   }
 
   @override
+  void onGameResize(Vector2 size) {
+    super.onGameResize(size);
+    dice.position = Vector2((size.x - 130) / 2, size.y - 80);
+  }
+
+  @override
   void update(double dt) {
     super.update(dt);
     elapsedTime += dt;
@@ -383,6 +430,11 @@ class RutaDeCenizasGame extends FlameGame with KeyboardEvents, ChangeNotifier {
       if ((cameraRowOffset - targetRow).abs() > 0.01) {
         cameraRowOffset = lerp(5 * dt, cameraRowOffset, targetRow);
       }
+    }
+
+    // Chequeo proactivo del Bot: si es su turno y no está haciendo nada, que actúe
+    if (isGameStarted && currentPlayer.isBot && !isMoving && !dice.isRolling && eventMessage == null) {
+      _performBotAI();
     }
 
     _updateAmbientDialogs(dt);
@@ -421,18 +473,20 @@ class RutaDeCenizasGame extends FlameGame with KeyboardEvents, ChangeNotifier {
     "La ceniza lo borra todo.",
     "Busco el calor entre las piedras.",
     "Subir es la única salida.",
-    "Mi voluntad es más fuerte que el frío."
+    "Mi voluntad es más fuerte que el frío.",
   ];
 
   void _updateAmbientDialogs(double dt) {
-    if (isGameStarted && cameraRowOffset > 26.5) return; // No ambient dialogs at the top
+    if (isGameStarted && cameraRowOffset > 26.5)
+      return; // No ambient dialogs at the top
     _dialogTimer -= dt;
     if (_dialogTimer <= 0) {
       _dialogTimer = 8.0 + _rand.nextDouble() * 10.0; // Random interval
       if (players.isNotEmpty) {
         final p = players[_rand.nextInt(players.length)];
         if (p.currentDialog == null) {
-          p.currentDialog = _ambientDialogs[_rand.nextInt(_ambientDialogs.length)];
+          p.currentDialog =
+              _ambientDialogs[_rand.nextInt(_ambientDialogs.length)];
           p.dialogTimer = 4.0; // Show for 4 seconds
           notifyListeners();
         }
@@ -456,8 +510,7 @@ class RutaDeCenizasGame extends FlameGame with KeyboardEvents, ChangeNotifier {
       dice.numDice = 2;
       currentEventType = TileType.barranco;
       final msg = _barrancoMessages[_rand.nextInt(_barrancoMessages.length)];
-      eventMessage =
-          "¡BARRANCO!\n\n$msg\n\nLanza los dados (2D6) para ver cuánto retrocedes.";
+      eventMessage = "¡BARRANCO!\n\n$msg";
       notifyListeners();
       overlays.add('EventMessageOverlay');
       _automationBot();
@@ -468,8 +521,7 @@ class RutaDeCenizasGame extends FlameGame with KeyboardEvents, ChangeNotifier {
       dice.numDice = 2;
       currentEventType = TileType.atajo;
       final msg = _atajoMessages[_rand.nextInt(_atajoMessages.length)];
-      eventMessage =
-          "¡ATAJO!\n\n$msg\n\nLanza los dados (2D6) para avanzar casillas extra.";
+      eventMessage = "¡ATAJO!\n\n$msg";
       notifyListeners();
       overlays.add('EventMessageOverlay');
       _automationBot();
@@ -480,14 +532,15 @@ class RutaDeCenizasGame extends FlameGame with KeyboardEvents, ChangeNotifier {
       currentEventType = TileType.historia;
       dice.numDice = 1;
       String historiaText;
-      
+
       if (isStoryMode) {
-        historiaText = "FRAGMENTO DE HISTORIA:\n\n${fragmentosHistoria[currentHistoryIndex]}";
-        historiaText += "\n\n(Recuperas integridad y vuelves a lanzar el dado).";
+        historiaText =
+            "FRAGMENTO DE HISTORIA:\n\n${fragmentosHistoria[currentHistoryIndex]}";
       } else {
-        historiaText = "¡FRAGMENTO ENCONTRADO!\n\nHas hallado restos de una expedición pasada. Recuperas integridad y vuelves a lanzar el dado.";
+        historiaText =
+            "¡FRAGMENTO ENCONTRADO!\n\nHas hallado restos de una expedición pasada. Tienes otro turno.";
       }
-      
+
       eventMessage = historiaText;
       userProfile.unlockFragment(currentHistoryIndex);
       currentHistoryIndex =
@@ -540,58 +593,63 @@ class RutaDeCenizasGame extends FlameGame with KeyboardEvents, ChangeNotifier {
       notifyListeners();
       overlays.add('EventMessageOverlay');
 
-      // Auto-continuar si es un bot
-      if (currentPlayer.isBot) {
-        Future.delayed(const Duration(seconds: 4), () {
-          if (eventMessage != null && eventMessage!.contains(itemName)) {
-            eventMessage = null;
-            endTurnExternal();
-            overlays.remove('EventMessageOverlay');
-            notifyListeners();
-          }
-        });
-      }
       return true;
     }
 
     return false;
   }
 
-  void _automationBot() {
-    // Automatización del BOT en eventos
-    if (currentPlayer.isBot && waitingForEventRoll) {
-      _checkBotEventRoll();
+  void dismissEvent() {
+    if (eventMessage == null) return;
 
-      // Fallback: Si el mensaje no se cierra en 5 segundos, auto-continuar para el bot
-      if (eventMessage != null) {
-        Future.delayed(const Duration(seconds: 5), () {
-          if (isGameStarted && currentPlayer.isBot && eventMessage != null) {
-            eventMessage = null;
-            if (currentEventType == TileType.consumible) {
-              endTurnExternal();
-            }
-            overlays.remove('EventMessageOverlay');
-            notifyListeners();
-          }
-        });
-      }
-    }
-  }
+    final wasConsumible = currentEventType == TileType.consumible;
+    final wasHistoria = currentEventType == TileType.historia;
 
-  void _checkBotEventRoll() {
-    if (!isGameStarted || !currentPlayer.isBot || !waitingForEventRoll) return;
-    
-    // Si hay un mensaje activo, esperamos un poco más para que el usuario lea
-    if (eventMessage != null) {
-      Future.delayed(const Duration(milliseconds: 500), _checkBotEventRoll);
+    eventMessage = null;
+    overlays.remove('EventMessageOverlay');
+
+    // Si había un lazo pendiente que mostró un mensaje, lo resolvemos ahora
+    if (_pendingLazoUser != null && _pendingLazoTarget != null) {
+      resolveLazo(defended: false);
       return;
     }
 
-    Future.delayed(const Duration(milliseconds: 800), () {
-      if (currentPlayer.isBot && waitingForEventRoll && eventMessage == null) {
+    if (wasConsumible || wasHistoria) {
+      if (wasHistoria) {
+        if (currentPlayer.isBot) {
+          rollAndMove();
+        }
+      } else {
+        _endTurn();
+      }
+    } else if (waitingForEventRoll) {
+      if (currentPlayer.isBot) {
         rollAndMove();
       }
-    });
+    } else {
+      _endTurn();
+    }
+
+    // Activar IA si sigue el turno de un bot y no hay mensajes
+    if (currentPlayer.isBot &&
+        isGameStarted &&
+        !isMoving &&
+        !dice.isRolling &&
+        eventMessage == null) {
+      _performBotAI();
+    }
+
+    notifyListeners();
+  }
+
+  void _automationBot() {
+    // Los bots ya no cierran mensajes solos.
+    // Ahora esperan a que el humano presione "Continuar" por ellos
+    // o a que se llame a dismissEvent().
+  }
+
+  void _checkBotEventRoll() {
+    // Ya no es necesaria la comprobación recursiva automática
   }
 
   void updateAudioVolume() {
@@ -647,14 +705,27 @@ class RutaDeCenizasGame extends FlameGame with KeyboardEvents, ChangeNotifier {
     _pendingLazoUser = currentPlayer;
     _pendingLazoTarget = leader;
 
-    // Verificar si el líder tiene Voluntad de los Antiguos
-    if (leader.voluntadDeLosAntiguosCount > 0 && !leader.isBot) {
-      // Pedir defensa al humano
+    // Si el objetivo es un bot, resolvemos según si tiene el ítem
+    if (leader.isBot) {
+      if (leader.voluntadDeLosAntiguosCount > 0) {
+        resolveLazo(defended: true);
+      } else {
+        resolveLazo(defended: false);
+      }
+      return;
+    }
+
+    // Si el objetivo es un humano, siempre notificamos
+    if (leader.voluntadDeLosAntiguosCount > 0) {
+      // El humano tiene defensa, mostramos el overlay de decisión
       overlays.add('LazoDefenseOverlay');
     } else {
-      // El bot no defiende automáticamente por ahora (según lore "independiente")
-      // o simplemente procedemos si el líder es un bot.
-      resolveLazo(defended: false);
+      // El humano NO tiene defensa, mostramos mensaje de evento y luego resolvemos
+      eventMessage =
+          "¡${currentPlayer.name} ha lanzado el LAZO DEL MALVADO contra ti!\n\nNo tienes nada para defenderte...";
+      notifyListeners();
+      overlays.add('EventMessageOverlay');
+      // resolveLazo se llamará desde dismissEvent si detecta que hay un lazo pendiente
     }
   }
 
@@ -674,7 +745,7 @@ class RutaDeCenizasGame extends FlameGame with KeyboardEvents, ChangeNotifier {
     } else {
       // Efecto del lazo: Traer al líder a la posición del usuario
       // Aumentamos la velocidad para el efecto de "tirón"
-      target.moveSpeedMultiplier = 8.0; 
+      target.moveSpeedMultiplier = 8.0;
       target.currentIndex = user.currentIndex;
       eventMessage =
           "${user.name} ha atrapado a ${target.name} con el LAZO y lo ha arrastrado hasta su posición.";
@@ -685,10 +756,8 @@ class RutaDeCenizasGame extends FlameGame with KeyboardEvents, ChangeNotifier {
     _pendingLazoTarget = null;
     notifyListeners();
 
-    Future.delayed(const Duration(seconds: 4), () {
-      eventMessage = null;
-      notifyListeners();
-    });
+    // Mostrar el resultado del lazo
+    overlays.add('EventMessageOverlay');
   }
 
   void useZapatos() {
@@ -712,6 +781,7 @@ class RutaDeCenizasGame extends FlameGame with KeyboardEvents, ChangeNotifier {
   ) {
     if (event is KeyDownEvent &&
         keysPressed.contains(LogicalKeyboardKey.space)) {
+      if (currentPlayer.isBot) return KeyEventResult.ignored;
       rollAndMove();
       return KeyEventResult.handled;
     }
@@ -821,6 +891,7 @@ class MiniMapComponent extends Component
     with HasGameReference<RutaDeCenizasGame> {
   @override
   void render(Canvas canvas) {
+    if (game.players.isEmpty) return;
     final size = game.canvasSize;
     const mapWidth = 10.0;
     const mapHeight = 200.0;
@@ -842,9 +913,12 @@ class MiniMapComponent extends Component
     if (totalTiles <= 1) return;
 
     for (var p in game.players) {
-      final progress = ((p.currentIndex - 1) / (totalTiles - 1)).clamp(0.0, 1.0);
+      final progress = ((p.currentIndex - 1) / (totalTiles - 1)).clamp(
+        0.0,
+        1.0,
+      );
       final markerY = mapY + mapHeight - (progress * mapHeight);
-      
+
       // Marker circle
       final markerPaint = Paint()..color = p.color;
       canvas.drawCircle(Offset(mapX + mapWidth / 2, markerY), 4, markerPaint);
@@ -880,6 +954,7 @@ class IntegridadBarComponent extends Component
     with HasGameReference<RutaDeCenizasGame> {
   @override
   void render(Canvas canvas) {
+    if (game.players.isEmpty) return;
     final size = game.canvasSize;
     const barWidth = 10.0;
     const barHeight = 200.0;
