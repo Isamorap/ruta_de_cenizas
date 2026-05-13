@@ -2,6 +2,7 @@
 
 [![Flutter](https://img.shields.io/badge/Flutter-%2302569B.svg?style=for-the-badge&logo=Flutter&logoColor=white)](https://flutter.dev)
 [![Flame](https://img.shields.io/badge/Flame-Engine-orange?style=for-the-badge)](https://flame-engine.org)
+[![Descargar APK](https://img.shields.io/badge/Descargar-APK-FFC107?style=for-the-badge&logo=android&logoColor=black)](https://github.com/Isamorap/ruta_de_cenizas/releases/tag/Ruta_de_Cenizas)
 
 > "No mires hacia abajo. La luz está ahí, a solo unos pasos. No te detengas."
 
@@ -26,7 +27,7 @@ En este juego, cada paso es una decisión entre la esperanza y el abismo. Utiliz
 ## 🎲 Mecánicas de Juego
 
 ### El Ascenso
-El movimiento se rige por el azar y la estrategia. Lanza los dados para avanzar, pero ten cuidado: la montaña es traicionera.
+El movimiento se rige por el azar. Lanza los dados para avanzar, pero ten cuidado: la montaña es traicionera.
 
 - **Integridad (HP)**: Tu resistencia física. Caer por barrancos te hará retroceder y perder integridad. Si llega a cero, el frío te reclamará.
 - **Gestión de Turnos**: En el modo multijugador, la competencia es feroz. ¿Ayudarás a otros? Yo digo que no.
@@ -87,6 +88,14 @@ Este proyecto explora las capacidades de **Flutter** para el desarrollo de juego
 - **Flame Engine**: Para el ciclo de juego y renderizado.
 - **Custom Shaders & Particles**: Para los efectos de ceniza y atmósfera.
 - **Procedural Generation Algorithms**: Para la creación del tablero.
+
+---
+
+## 📥 Instalación y Descarga
+
+Para jugar la versión más reciente en tu dispositivo Android, visita la sección de lanzamientos:
+
+👉 **[Descargar última versión (APK)](https://github.com/Isamorap/ruta_de_cenizas/releases/tag/Ruta_de_Cenizas)**
 
 ---
 
