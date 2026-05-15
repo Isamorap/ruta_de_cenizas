@@ -26,6 +26,9 @@ class RutaDeCenizasGame extends FlameGame
   UserProfile userProfile = UserProfile();
 
   PlayerState get currentPlayer => players[currentPlayerIndex];
+  
+  /// Public method to trigger UI updates from external components
+  void refreshUI() => notifyListeners();
 
   // Session Stats
   int sessionTurns = 0;

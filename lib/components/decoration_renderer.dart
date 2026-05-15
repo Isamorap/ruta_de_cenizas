@@ -1,7 +1,5 @@
 import 'package:flame/components.dart';
 import 'package:flutter/material.dart';
-import '../ruta_de_cenizas_game.dart';
-import '../utils/perspective_utils.dart';
 import 'dart:math' as math;
 
 enum DecorationType { deadTree, ashBush, charredRock }
@@ -21,9 +19,15 @@ class TileDecoration {
 }
 
 class DecorationRenderer {
-  static void render(Canvas canvas, DecorationType type, double seed, Vector2 pos, double scale) {
+  static void render(
+    Canvas canvas,
+    DecorationType type,
+    double seed,
+    Vector2 pos,
+    double scale,
+  ) {
     final rand = math.Random((seed * 1000).toInt());
-    
+
     switch (type) {
       case DecorationType.deadTree:
         _drawDeadTree(canvas, pos, scale, rand);
@@ -37,7 +41,12 @@ class DecorationRenderer {
     }
   }
 
-  static void _drawDeadTree(Canvas canvas, Vector2 pos, double scale, math.Random rand) {
+  static void _drawDeadTree(
+    Canvas canvas,
+    Vector2 pos,
+    double scale,
+    math.Random rand,
+  ) {
     final height = (80 + rand.nextDouble() * 60) * scale;
     final paint = Paint()
       ..color = const Color(0xFF000000)
@@ -53,25 +62,31 @@ class DecorationRenderer {
       final bHeight = height * (0.3 + rand.nextDouble() * 0.5);
       final side = rand.nextBool() ? 1 : -1;
       final angle = (0.3 + rand.nextDouble() * 0.6) * side;
-      
+
       path.moveTo(pos.x, pos.y - bHeight);
-      path.lineTo(
-        pos.x + (30 * scale * side),
-        pos.y - bHeight - (20 * scale),
-      );
+      path.lineTo(pos.x + (30 * scale * side), pos.y - bHeight - (20 * scale));
     }
-    
+
     canvas.drawPath(path, paint);
   }
 
-  static void _drawAshBush(Canvas canvas, Vector2 pos, double scale, math.Random rand) {
+  static void _drawAshBush(
+    Canvas canvas,
+    Vector2 pos,
+    double scale,
+    math.Random rand,
+  ) {
     final size = (25 + rand.nextDouble() * 15) * scale;
     final paint = Paint()
       ..color = const Color(0xFF080808)
       ..style = PaintingStyle.fill;
 
     canvas.drawOval(
-      Rect.fromCenter(center: Offset(pos.x, pos.y - size/2), width: size * 1.8, height: size),
+      Rect.fromCenter(
+        center: Offset(pos.x, pos.y - size / 2),
+        width: size * 1.8,
+        height: size,
+      ),
       paint,
     );
 
@@ -79,19 +94,27 @@ class DecorationRenderer {
     final stickPaint = Paint()
       ..color = const Color(0xFF000000)
       ..strokeWidth = 1.5 * scale;
-    
+
     for (int i = 0; i < 8; i++) {
       final angle = rand.nextDouble() * math.pi;
       final len = size * 0.9;
       canvas.drawLine(
         Offset(pos.x, pos.y - 2),
-        Offset(pos.x + math.cos(angle) * len, pos.y - size/2 - math.sin(angle) * len),
+        Offset(
+          pos.x + math.cos(angle) * len,
+          pos.y - size / 2 - math.sin(angle) * len,
+        ),
         stickPaint,
       );
     }
   }
 
-  static void _drawCharredRock(Canvas canvas, Vector2 pos, double scale, math.Random rand) {
+  static void _drawCharredRock(
+    Canvas canvas,
+    Vector2 pos,
+    double scale,
+    math.Random rand,
+  ) {
     final size = (15 + rand.nextDouble() * 20) * scale;
     final paint = Paint()
       ..color = const Color(0xFF000000)
@@ -105,7 +128,7 @@ class DecorationRenderer {
     path.close();
 
     canvas.drawPath(path, paint);
-    
+
     // Highlight
     final highlightPaint = Paint()
       ..color = Colors.white.withValues(alpha: 0.15)

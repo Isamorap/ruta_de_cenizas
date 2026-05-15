@@ -60,7 +60,7 @@ class BeastComponent extends Component with HasGameReference<RutaDeCenizasGame> 
           _state = 3;
           targetPlayer.moveSpeedMultiplier = 15.0; // Fast drag
           targetPlayer.currentIndex = 1;
-          game.notifyListeners();
+          game.refreshUI();
         }
         break;
 
