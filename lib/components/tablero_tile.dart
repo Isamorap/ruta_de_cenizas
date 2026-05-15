@@ -1,3 +1,4 @@
+import 'dart:math' as math;
 import 'package:flutter/material.dart';
 import 'package:flame/components.dart';
 import '../ruta_de_cenizas_game.dart';
@@ -90,28 +91,44 @@ class TableroTile extends PositionComponent with HasGameReference<RutaDeCenizasG
     }
 
     // Paints
-    final topPaint = Paint()..color = _getTileColor();
-    final frontPaint = Paint()..color = _getTileColor().withAlpha(180);
-    final sidePaint = Paint()..color = _getTileColor().withAlpha(120);
+    final baseColor = _getTileColor();
+    final topPaint = Paint()..color = baseColor;
     final borderPaint = Paint()
-      ..color = Colors.black.withValues(alpha: 0.3)
+      ..color = Colors.black.withValues(alpha: 0.8) // Borde más marcado
       ..style = PaintingStyle.stroke
-      ..strokeWidth = 1.0;
+      ..strokeWidth = 1.2;
 
-    // Draw faces
-    if (sidePath != null) canvas.drawPath(sidePath, sidePaint);
-    canvas.drawPath(frontPath, frontPaint);
+    // Draw face (Solo la cara superior para estilo Flat)
     canvas.drawPath(topPath, topPaint);
-    
-    if (isVisited) {
-      _drawAshTrail(canvas, p1, p2, p3, p4);
+
+    if (isRevealed) {
+      // 1. Efecto de Relieve (Sutil para estilo Flat)
+      final lightPaint = Paint()
+        ..color = Colors.white.withValues(alpha: 0.15)
+        ..style = PaintingStyle.stroke
+        ..strokeWidth = 1.0;
+      canvas.drawLine(p1, p2, lightPaint);
+
+      final rnd = math.Random(index);
+
+      // 2. Textura de Ceniza
+      _drawAshDetails(canvas, p1, p2, p3, p4, rnd);
+
+      // 3. Grietas
+      if (rnd.nextDouble() < 0.25) {
+        _drawCracks(canvas, p1, p2, p3, p4, rnd);
+      }
+
+      // 4. Rocas Flat
+      if (type == TileType.normal && rnd.nextDouble() < 0.15) {
+        _drawFlatRock(canvas, p1, p2, p3, p4, rnd);
+      }
     }
     
-    // Draw borders for definition
+    // Draw borders (Solo el borde superior)
     canvas.drawPath(topPath, borderPaint);
-    canvas.drawPath(frontPath, borderPaint);
 
-    // Draw index number
+    // Draw index
     if (isVisited) {
       _drawIndex(canvas, p1, p2, p3, p4);
     }
@@ -119,7 +136,74 @@ class TableroTile extends PositionComponent with HasGameReference<RutaDeCenizasG
     if (isRevealed && type == TileType.consumible && !itemCollected && item != null) {
       _drawItemIcon(canvas, p1, p2, p3, p4);
     }
+  }
 
+  void _drawAshDetails(Canvas canvas, Offset p1, Offset p2, Offset p3, Offset p4, math.Random rnd) {
+    final ashPaint = Paint()..color = Colors.black.withValues(alpha: 0.3);
+    for (int i = 0; i < 12; i++) { // Aumentado a 12 puntos
+      double u = rnd.nextDouble();
+      double v = rnd.nextDouble();
+      double x = (1 - u) * (1 - v) * p1.dx + u * (1 - v) * p2.dx + u * v * p3.dx + (1 - u) * v * p4.dx;
+      double y = (1 - u) * (1 - v) * p1.dy + u * (1 - v) * p2.dy + u * v * p3.dy + (1 - u) * v * p4.dy;
+      canvas.drawCircle(Offset(x, y), 0.3 + rnd.nextDouble() * 2.0, ashPaint);
+    }
+  }
+
+  void _drawCracks(Canvas canvas, Offset p1, Offset p2, Offset p3, Offset p4, math.Random rnd) {
+    final crackPaint = Paint()
+      ..color = Colors.black.withValues(alpha: 0.45)
+      ..style = PaintingStyle.stroke
+      ..strokeWidth = 1.0;
+
+    double u = 0.2 + rnd.nextDouble() * 0.6;
+    double v = 0.2 + rnd.nextDouble() * 0.6;
+    double startX = (1 - u) * (1 - v) * p1.dx + u * (1 - v) * p2.dx + u * v * p3.dx + (1 - u) * v * p4.dx;
+    double startY = (1 - u) * (1 - v) * p1.dy + u * (1 - v) * p2.dy + u * v * p3.dy + (1 - u) * v * p4.dy;
+
+    void branch(double x, double y, int depth) {
+      if (depth <= 0) return;
+      double endX = x + (rnd.nextDouble() - 0.5) * 25;
+      double endY = y + (rnd.nextDouble() - 0.5) * 20;
+      canvas.drawLine(Offset(x, y), Offset(endX, endY), crackPaint);
+      if (rnd.nextDouble() < 0.6) branch(endX, endY, depth - 1);
+      if (rnd.nextDouble() < 0.3) branch(endX, endY, depth - 1); // Ramificación extra
+    }
+
+    branch(startX, startY, 4);
+  }
+
+  void _drawFlatRock(Canvas canvas, Offset p1, Offset p2, Offset p3, Offset p4, math.Random rnd) {
+    final scale = PerspectiveUtils.getScale(row.toDouble(), cameraRowOffset: game.cameraRowOffset);
+    final rockSize = (10 + rnd.nextDouble() * 12) * scale;
+    double cx = (p1.dx + p2.dx + p3.dx + p4.dx) / 4;
+    double cy = (p1.dy + p2.dy + p3.dy + p4.dy) / 4;
+
+    final rockPaint = Paint()..color = const Color(0xFF222222);
+    final shadePaint = Paint()..color = Colors.black.withValues(alpha: 0.3);
+    
+    final rockPath = Path();
+    int sides = 3 + rnd.nextInt(4);
+    List<Offset> points = [];
+    for (int i = 0; i < sides; i++) {
+      double angle = (i * 2 * math.pi / sides) + rnd.nextDouble() * 0.5;
+      double dist = rockSize * (0.8 + rnd.nextDouble() * 0.4);
+      points.add(Offset(cx + math.cos(angle) * dist, cy + math.sin(angle) * dist));
+    }
+    
+    rockPath.moveTo(points[0].dx, points[0].dy);
+    for (int i = 1; i < points.length; i++) rockPath.lineTo(points[i].dx, points[i].dy);
+    rockPath.close();
+
+    canvas.drawPath(rockPath, rockPaint);
+    
+    // Sombreado de "volumen" en la roca
+    final shadowPath = Path()..moveTo(cx, cy);
+    shadowPath.lineTo(points[rnd.nextInt(points.length)].dx, points[rnd.nextInt(points.length)].dy);
+    shadowPath.lineTo(points[rnd.nextInt(points.length)].dx, points[rnd.nextInt(points.length)].dy);
+    shadowPath.close();
+    canvas.drawPath(shadowPath, shadePaint);
+
+    canvas.drawPath(rockPath, Paint()..color = Colors.white12..style = PaintingStyle.stroke..strokeWidth = 0.5);
   }
 
   void _drawItemIcon(Canvas canvas, Offset p1, Offset p2, Offset p3, Offset p4) {
@@ -132,23 +216,21 @@ class TableroTile extends PositionComponent with HasGameReference<RutaDeCenizasG
     switch (item!) {
       case ItemType.zapatosDeEscalada:
         icon = Icons.hiking;
-        color = const Color(0xFF8B4513); // Brown
+        color = const Color(0xFF8B4513);
         break;
       case ItemType.lazoDelMalvado:
-        icon = Icons.all_inclusive; // representing lasso
-        color = const Color(0xFF8A2BE2); // Purple
+        icon = Icons.all_inclusive;
+        color = const Color(0xFF8A2BE2);
         break;
       case ItemType.voluntadDeLosAntiguos:
         icon = Icons.shield;
-        color = const Color(0xFFFFD700); // Gold
+        color = const Color(0xFFFFD700);
         break;
     }
 
-    // Paint background circle
     canvas.drawCircle(Offset(centerX, centerY), 12, Paint()..color = Colors.white.withValues(alpha: 0.8));
     canvas.drawCircle(Offset(centerX, centerY), 12, Paint()..color = color..style = PaintingStyle.stroke..strokeWidth = 2);
 
-    // Draw icon using text painter since it's an IconData
     final iconString = String.fromCharCode(icon.codePoint);
     final span = TextSpan(
       text: iconString,
@@ -168,17 +250,11 @@ class TableroTile extends PositionComponent with HasGameReference<RutaDeCenizasG
     final centerX = (p1.dx + p2.dx + p3.dx + p4.dx) / 4;
     final centerY = (p1.dy + p2.dy + p3.dy + p4.dy) / 4;
 
-    final span = TextSpan(
-      text: index.toString(),
-      style: TextStyle(
-        color: Colors.white.withValues(alpha: 0.15),
-        fontSize: 10,
-        fontWeight: FontWeight.normal,
-      ),
-    );
     final tp = TextPainter(
-      text: span,
-      textAlign: TextAlign.center,
+      text: TextSpan(
+        text: index.toString(),
+        style: TextStyle(color: Colors.white.withValues(alpha: 0.15), fontSize: 10),
+      ),
       textDirection: TextDirection.ltr,
     );
     tp.layout();
@@ -186,34 +262,22 @@ class TableroTile extends PositionComponent with HasGameReference<RutaDeCenizasG
   }
 
   void _drawAshTrail(Canvas canvas, Offset p1, Offset p2, Offset p3, Offset p4) {
-    // Draw some random-looking dark gray spots to represent ash accumulation
     final paint = Paint()..color = Colors.black.withValues(alpha: 0.2);
-    
-    // We can just draw a few small circles near the center
     final centerX = (p1.dx + p2.dx + p3.dx + p4.dx) / 4;
     final centerY = (p1.dy + p2.dy + p3.dy + p4.dy) / 4;
-    
     canvas.drawCircle(Offset(centerX - 5, centerY + 2), 3, paint);
     canvas.drawCircle(Offset(centerX + 8, centerY - 4), 2, paint);
     canvas.drawCircle(Offset(centerX - 2, centerY - 6), 4, paint);
   }
 
   Color _getTileColor() {
-    if (!isRevealed) return const Color(0xFF242424); // Dark charcoal for unknown
-
+    if (!isRevealed) return const Color(0xFF242424);
     switch (type) {
-      case TileType.barranco:
-        return const Color(0xFFB22222); 
-      case TileType.atajo:
-        return const Color(0xFF4682B4); 
-      case TileType.suceso:
-        return const Color(0xFFC0C0C0);
-      case TileType.historia:
-        return const Color(0xFFDAA520); // Amber/Golden for history
-      case TileType.consumible:
-        return const Color(0xFF9370DB); // Medium purple for items
-      case TileType.normal:
-        return surfaceColor; 
+      case TileType.barranco: return const Color(0xFF1A1A1A);
+      case TileType.atajo: return const Color(0xFF2C3E50);
+      case TileType.historia: return const Color(0xFF4A4439);
+      case TileType.consumible: return const Color(0xFF3D2B56);
+      default: return surfaceColor;
     }
   }
 }

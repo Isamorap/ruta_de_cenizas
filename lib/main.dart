@@ -583,12 +583,13 @@ class _LobbyOverlayState extends State<LobbyOverlay> {
 
   Widget _buildPlayerConfig(int i) {
     final char = kCharacters[_selectedChars[i]];
+    final playerColor = _selectedColors[i];
     return Container(
       margin: const EdgeInsets.only(bottom: 20),
       padding: const EdgeInsets.all(15),
       decoration: BoxDecoration(
         color: Colors.white.withValues(alpha: 0.02),
-        border: Border.all(color: Colors.white10),
+        border: Border.all(color: playerColor.withValues(alpha: 0.1)),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -597,7 +598,7 @@ class _LobbyOverlayState extends State<LobbyOverlay> {
             "JUGADOR ${i + 1}",
             style: TextStyle(
               fontSize: 10,
-              color: char.color,
+              color: playerColor,
               fontWeight: FontWeight.bold,
               letterSpacing: 2,
             ),
@@ -609,19 +610,20 @@ class _LobbyOverlayState extends State<LobbyOverlay> {
               GestureDetector(
                 onTap: () {
                   setState(() {
-                    _selectedChars[i] =
-                        (_selectedChars[i] + 1) % kCharacters.length;
+                    _selectedChars[i] = (_selectedChars[i] + 1) % kCharacters.length;
+                    // Opcional: Podríamos sincronizar el color al cambiar el personaje
+                    _selectedColors[i] = kCharacters[_selectedChars[i]].color;
                   });
                 },
                 child: Container(
                   width: 50,
                   height: 50,
                   decoration: BoxDecoration(
-                    color: char.color.withValues(alpha: 0.2),
+                    color: playerColor.withValues(alpha: 0.2),
                     shape: BoxShape.circle,
-                    border: Border.all(color: char.color, width: 1.5),
+                    border: Border.all(color: playerColor, width: 1.5),
                   ),
-                  child: Icon(char.icon, color: char.color, size: 24),
+                  child: Icon(char.icon, color: playerColor, size: 24),
                 ),
               ),
               const SizedBox(width: 15),
@@ -633,11 +635,11 @@ class _LobbyOverlayState extends State<LobbyOverlay> {
                   decoration: InputDecoration(
                     hintText: "Nombre",
                     hintStyle: const TextStyle(color: Colors.white24),
-                    enabledBorder: UnderlineInputBorder(
+                    enabledBorder: const UnderlineInputBorder(
                       borderSide: BorderSide(color: Colors.white10),
                     ),
                     focusedBorder: UnderlineInputBorder(
-                      borderSide: BorderSide(color: char.color),
+                      borderSide: BorderSide(color: playerColor),
                     ),
                   ),
                 ),
@@ -854,252 +856,189 @@ class SoloSetupOverlay extends StatefulWidget {
 class _SoloSetupOverlayState extends State<SoloSetupOverlay> {
   int _selectedChar = 0;
   late Color _customColor;
-  late final TextEditingController _nameCtrl;
 
   @override
   void initState() {
     super.initState();
     _customColor = kCharacters[_selectedChar].color;
-    _nameCtrl = TextEditingController(text: widget.game.userProfile.name);
-  }
-
-  @override
-  void dispose() {
-    _nameCtrl.dispose();
-    super.dispose();
   }
 
   @override
   Widget build(BuildContext context) {
     final char = kCharacters[_selectedChar];
     return Container(
-      color: const Color(0xFF0A0A0A),
-      child: Center(
-        child: SingleChildScrollView(
-          padding: const EdgeInsets.symmetric(vertical: 40, horizontal: 30),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              // ── Título ────────────────────────────────────
-              const Text(
-                'ELIGE TU PERSONAJE',
-                style: TextStyle(
-                  letterSpacing: 4,
-                  fontSize: 13,
-                  color: Colors.white54,
-                ),
+      color: Colors.black.withValues(alpha: 0.95),
+      child: Stack(
+        children: [
+          AnimatedContainer(
+            duration: const Duration(milliseconds: 500),
+            decoration: BoxDecoration(
+              gradient: RadialGradient(
+                center: const Alignment(0.7, 0),
+                radius: 1.5,
+                colors: [
+                  _customColor.withValues(alpha: 0.12),
+                  Colors.transparent,
+                ],
               ),
-              const SizedBox(height: 30),
+            ),
+          ),
+          SafeArea(
+            child: Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 50, vertical: 30),
+              child: Row(
+                children: [
+                  Expanded(flex: 3, child: _buildPortrait(char)),
+                  const SizedBox(width: 50),
+                  Expanded(flex: 4, child: _buildControls(char)),
+                ],
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
 
-              // ── Previsualización del personaje seleccionado ─
-              AnimatedContainer(
-                duration: const Duration(milliseconds: 300),
-                width: 100,
-                height: 100,
-                decoration: BoxDecoration(
-                  shape: BoxShape.circle,
-                  border: Border.all(color: char.color, width: 2),
-                  color: char.color.withValues(alpha: 0.1),
-                ),
-                child: Icon(char.icon, color: char.color, size: 48),
+  Widget _buildPortrait(CharacterData char) {
+    return AnimatedContainer(
+      duration: const Duration(milliseconds: 400),
+      decoration: BoxDecoration(
+        border: Border.all(color: _customColor.withValues(alpha: 0.3), width: 1),
+        boxShadow: [BoxShadow(color: _customColor.withValues(alpha: 0.05), blurRadius: 40)],
+      ),
+      child: Stack(
+        fit: StackFit.expand,
+        children: [
+          // Imagen del personaje (PNG) con respaldo de Icono
+          Center(
+            child: Image.asset(
+              'assets/images/portraits/${char.id}.png',
+              fit: BoxFit.contain,
+              errorBuilder: (context, error, stackTrace) => Icon(
+                char.icon,
+                size: 280,
+                color: _customColor.withValues(alpha: 0.3),
               ),
-              const SizedBox(height: 12),
-              AnimatedDefaultTextStyle(
+            ),
+          ),
+          Positioned(
+            bottom: 60,
+            left: -20,
+            child: Transform.rotate(
+              angle: -0.06,
+              child: Container(
+                padding: const EdgeInsets.symmetric(horizontal: 60, vertical: 15),
+                color: _customColor,
+                child: Text(
+                  char.displayName.toUpperCase(),
+                  style: const TextStyle(color: Colors.black, fontWeight: FontWeight.bold, fontSize: 28, letterSpacing: 4),
+                ),
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildControls(CharacterData char) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        const Text("ARCHIVO DE EXPEDICIONARIO", style: TextStyle(color: Colors.white24, fontSize: 10, letterSpacing: 4)),
+        const SizedBox(height: 20),
+        
+        // Miniaturas
+        Wrap(
+          spacing: 10,
+          runSpacing: 10,
+          children: List.generate(kCharacters.length, (i) {
+            final c = kCharacters[i];
+            final isSel = _selectedChar == i;
+            return GestureDetector(
+              onTap: () => setState(() { _selectedChar = i; _customColor = c.color; }),
+              child: AnimatedContainer(
                 duration: const Duration(milliseconds: 200),
-                style: TextStyle(
-                  color: char.color,
-                  fontSize: 16,
-                  letterSpacing: 3,
+                width: 62, height: 62,
+                decoration: BoxDecoration(
+                  border: Border.all(color: isSel ? _customColor : Colors.white10, width: isSel ? 2 : 1),
+                  color: isSel ? _customColor.withValues(alpha: 0.15) : Colors.transparent,
                 ),
-                child: Text(char.displayName.toUpperCase()),
+                child: Icon(c.icon, color: isSel ? _customColor : Colors.white24, size: 28),
               ),
-              const SizedBox(height: 30),
-
-              // ── Grid de selección ──────────────────────────
-              SizedBox(
-                width: 320,
-                child: Wrap(
-                  alignment: WrapAlignment.center,
-                  spacing: 12,
-                  runSpacing: 12,
-                  children: List.generate(kCharacters.length, (i) {
-                    final c = kCharacters[i];
-                    final selected = i == _selectedChar;
-                    return GestureDetector(
-                      onTap: () => setState(() => _selectedChar = i),
-                      child: AnimatedContainer(
-                        duration: const Duration(milliseconds: 200),
-                        width: 64,
-                        height: 64,
-                        decoration: BoxDecoration(
-                          shape: BoxShape.circle,
-                          border: Border.all(
-                            color: selected ? c.color : Colors.white12,
-                            width: selected ? 2.5 : 1,
-                          ),
-                          color: selected
-                              ? c.color.withValues(alpha: 0.2)
-                              : Colors.white.withValues(alpha: 0.03),
-                        ),
-                        child: Icon(
-                          c.icon,
-                          color: selected ? c.color : Colors.white24,
-                          size: 28,
-                        ),
-                      ),
-                    );
-                  }),
+            );
+          }),
+        ),
+        const SizedBox(height: 25),
+        
+        // Colores
+        Wrap(
+          spacing: 12,
+          runSpacing: 15,
+          children: kAvailableColors.map((color) {
+            final isSel = _customColor == color;
+            return GestureDetector(
+              onTap: () => setState(() => _customColor = color),
+              child: Container(
+                width: 32, height: 32,
+                decoration: BoxDecoration(
+                  color: color, 
+                  shape: BoxShape.circle, 
+                  border: Border.all(color: isSel ? Colors.white : Colors.white10, width: 2),
+                  boxShadow: isSel ? [BoxShadow(color: color.withValues(alpha: 0.3), blurRadius: 8)] : null,
                 ),
               ),
-              const SizedBox(height: 35),
+            );
+          }).toList(),
+        ),
+        const SizedBox(height: 25),
+        
+        Text(char.description, style: const TextStyle(color: Colors.white70, fontSize: 13, height: 1.5, fontStyle: FontStyle.italic)),
+        const Spacer(),
+        Row(
+          children: [
+            Expanded(
+              child: _actionButton("VOLVER", Colors.white.withValues(alpha: 0.05), Colors.white38, () {
+                widget.game.overlays.add('MainMenuOverlay');
+                widget.game.overlays.remove('SoloSetupOverlay');
+              }),
+            ),
+            const SizedBox(width: 15),
+            Expanded(
+              flex: 2,
+              child: _actionButton("INICIAR ASCENSO", _customColor, Colors.black, () {
+                final players = [
+                  PlayerState(name: char.displayName, color: _customColor, characterId: char.id, isBot: false),
+                  PlayerState(name: "LA SOMBRA", color: Colors.grey, characterId: 'bot_shadow', isBot: true),
+                ];
+                widget.game.startGame(players);
+                widget.game.overlays.remove('SoloSetupOverlay');
+              }),
+            ),
+          ],
+        ),
+      ],
+    );
+  }
 
-              // ── Selector de Color ──────────────────────────
-              const Text(
-                'COLOR DE FICHA',
-                style: TextStyle(
-                  letterSpacing: 2,
-                  fontSize: 10,
-                  color: Colors.white24,
-                ),
+  Widget _actionButton(String label, Color bg, Color fg, VoidCallback onTap) {
+    return GestureDetector(
+      onTap: onTap,
+      child: Container(
+        height: 52,
+        decoration: BoxDecoration(color: bg),
+        child: Center(
+          child: Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 8),
+            child: FittedBox(
+              fit: BoxFit.scaleDown,
+              child: Text(
+                label,
+                textAlign: TextAlign.center,
+                style: TextStyle(color: fg, fontWeight: FontWeight.w900, letterSpacing: 0.5, fontSize: 11),
               ),
-              const SizedBox(height: 15),
-              SizedBox(
-                width: 320,
-                child: Wrap(
-                  alignment: WrapAlignment.center,
-                  spacing: 10,
-                  runSpacing: 10,
-                  children: kAvailableColors.map((color) {
-                    final isSelected = _customColor == color;
-                    return GestureDetector(
-                      onTap: () => setState(() => _customColor = color),
-                      child: Container(
-                        width: 32,
-                        height: 32,
-                        decoration: BoxDecoration(
-                          color: color,
-                          shape: BoxShape.circle,
-                          border: Border.all(
-                            color: isSelected ? Colors.white : Colors.white10,
-                            width: isSelected ? 2 : 1,
-                          ),
-                          boxShadow: isSelected
-                              ? [
-                                  BoxShadow(
-                                    color: color.withValues(alpha: 0.5),
-                                    blurRadius: 10,
-                                  ),
-                                ]
-                              : null,
-                        ),
-                      ),
-                    );
-                  }).toList(),
-                ),
-              ),
-              const SizedBox(height: 35),
-
-              // ── Nombre del jugador ─────────────────────────
-              SizedBox(
-                width: 260,
-                child: TextField(
-                  controller: _nameCtrl,
-                  textAlign: TextAlign.center,
-                  style: const TextStyle(
-                    color: Colors.white,
-                    letterSpacing: 2,
-                    fontSize: 14,
-                  ),
-                  maxLength: 20,
-                  decoration: InputDecoration(
-                    counterText: '',
-                    hintText: 'TU NOMBRE',
-                    hintStyle: TextStyle(
-                      color: Colors.white24,
-                      letterSpacing: 2,
-                      fontSize: 12,
-                    ),
-                    enabledBorder: UnderlineInputBorder(
-                      borderSide: BorderSide(
-                        color: char.color.withValues(alpha: 0.5),
-                      ),
-                    ),
-                    focusedBorder: UnderlineInputBorder(
-                      borderSide: BorderSide(color: char.color),
-                    ),
-                  ),
-                ),
-              ),
-              const SizedBox(height: 40),
-
-              // ── Botón iniciar ──────────────────────────────
-              OutlinedButton(
-                onPressed: () {
-                  final name = _nameCtrl.text.trim().isEmpty
-                      ? 'Explorador'
-                      : _nameCtrl.text.trim();
-                  widget.game.userProfile.name = name;
-                  widget.game.userProfile.save();
-
-                  final players = [
-                    PlayerState(
-                      name: name,
-                      color: _customColor,
-                      characterId: char.id,
-                      isBot: false,
-                    ),
-                    PlayerState(
-                      name: "La Sombra",
-                      color: Colors.redAccent,
-                      characterId: 'char7',
-                      isBot: true,
-                    ),
-                  ];
-
-                  widget.game.isStoryMode = true;
-                  if (widget.game.userProfile.isFirstTimeStory) {
-                    widget.game.overlays.add('NarrativeOverlay');
-                    // Store players to start after intro
-                    widget.game.pendingPlayers = players;
-                  } else {
-                    widget.game.startGame(players);
-                  }
-                  widget.game.overlays.remove('SoloSetupOverlay');
-                },
-                style: OutlinedButton.styleFrom(
-                  side: BorderSide(color: char.color.withValues(alpha: 0.6)),
-                  foregroundColor: char.color,
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: 40,
-                    vertical: 16,
-                  ),
-                  shape: const RoundedRectangleBorder(
-                    borderRadius: BorderRadius.zero,
-                  ),
-                ),
-                child: const Text(
-                  'INICIAR EXPEDICIÓN',
-                  style: TextStyle(letterSpacing: 3, fontSize: 11),
-                ),
-              ),
-              const SizedBox(height: 16),
-
-              // ── Volver ─────────────────────────────────────
-              TextButton(
-                onPressed: () {
-                  widget.game.overlays.add('MainMenuOverlay');
-                  widget.game.overlays.remove('SoloSetupOverlay');
-                },
-                child: const Text(
-                  'VOLVER',
-                  style: TextStyle(
-                    color: Colors.white24,
-                    fontSize: 10,
-                    letterSpacing: 2,
-                  ),
-                ),
-              ),
-            ],
+            ),
           ),
         ),
       ),

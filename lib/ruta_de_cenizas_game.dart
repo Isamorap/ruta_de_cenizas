@@ -351,6 +351,7 @@ class RutaDeCenizasGame extends FlameGame
         "LA INTEGRIDAD SE HA DESVANECIDO.\n\nLa Bestia de las Cenizas huele tu cansancio, tu debilidad... y viene a reclamar lo que queda de ti.";
     _playSound('fall.mp3');
     notifyListeners();
+    overlays.add('EventMessageOverlay');
 
     add(
       BeastComponent(

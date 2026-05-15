@@ -14,7 +14,14 @@ class DiceComponent extends PositionComponent
   double rollTimer = 0;
   final Random _rand = Random();
 
-  DiceComponent() : super(size: Vector2(180, 80), position: Vector2(20, 20));
+  DiceComponent() : super(size: Vector2(180, 80));
+
+  @override
+  void onGameResize(Vector2 size) {
+    super.onGameResize(size);
+    // Centrar horizontalmente y bajar un poco más para que no tape tanto
+    position = Vector2((size.x - this.size.x) / 2, 80);
+  }
 
   void roll({int diceCount = 1}) {
     numDice = diceCount;
@@ -48,33 +55,40 @@ class DiceComponent extends PositionComponent
 
   @override
   void render(Canvas canvas) {
-    if (game.players.isEmpty) return; // No renderizar si no hay jugadores inicializados
+    if (game.players.isEmpty) return;
 
     final canRoll = !isRolling && !game.isMoving;
     final showTwoDice = numDice == 2;
-    
-    // El tamaño de cada dado ahora es aproximadamente 66x66 (1/3 más que 50)
     final dieSize = 66.0;
+    final spacing = 15.0; // Espacio entre dados
+
+    // Cálculo de centrado dinámico dentro del componente (ancho 180)
+    double startX;
+    if (showTwoDice) {
+      final totalWidth = (dieSize * 2) + spacing;
+      startX = (size.x - totalWidth) / 2;
+    } else {
+      startX = (size.x - dieSize) / 2;
+    }
 
     if (canRoll) {
-      // Glow individual
       final glowPaint = Paint()
         ..color = Colors.yellow.withValues(alpha: 0.15 + (sin(game.elapsedTime * 5).abs() * 0.2))
         ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 15);
       
       if (showTwoDice) {
-        canvas.drawRRect(RRect.fromRectAndRadius(Rect.fromLTWH(0, 0, dieSize, dieSize).inflate(6), const Radius.circular(12)), glowPaint);
-        canvas.drawRRect(RRect.fromRectAndRadius(Rect.fromLTWH(90, 0, dieSize, dieSize).inflate(6), const Radius.circular(12)), glowPaint);
+        canvas.drawRRect(RRect.fromRectAndRadius(Rect.fromLTWH(startX, 0, dieSize, dieSize).inflate(8), const Radius.circular(12)), glowPaint);
+        canvas.drawRRect(RRect.fromRectAndRadius(Rect.fromLTWH(startX + dieSize + spacing, 0, dieSize, dieSize).inflate(8), const Radius.circular(12)), glowPaint);
       } else {
-        canvas.drawRRect(RRect.fromRectAndRadius(Rect.fromLTWH(57, 0, dieSize, dieSize).inflate(6), const Radius.circular(12)), glowPaint);
+        canvas.drawRRect(RRect.fromRectAndRadius(Rect.fromLTWH(startX, 0, dieSize, dieSize).inflate(8), const Radius.circular(12)), glowPaint);
       }
     }
 
     if (showTwoDice) {
-      _drawDie(canvas, Offset(0, 0), value1, dieSize);
-      _drawDie(canvas, Offset(90, 0), value2, dieSize);
+      _drawDie(canvas, Offset(startX, 0), value1, dieSize);
+      _drawDie(canvas, Offset(startX + dieSize + spacing, 0), value2, dieSize);
     } else {
-      _drawDie(canvas, Offset(57, 0), value1, dieSize);
+      _drawDie(canvas, Offset(startX, 0), value1, dieSize);
     }
   }
 
