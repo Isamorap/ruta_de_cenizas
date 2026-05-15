@@ -915,38 +915,46 @@ class _SoloSetupOverlayState extends State<SoloSetupOverlay> {
           ),
         ],
       ),
+      clipBehavior: Clip.antiAlias,
       child: Stack(
         fit: StackFit.expand,
         children: [
           // Imagen del personaje (PNG) con respaldo de Icono
-          Center(
-            child: Image.asset(
-              'assets/images/portraits/${char.id}.png',
-              fit: BoxFit.contain,
-              errorBuilder: (context, error, stackTrace) => Icon(
+          Image.asset(
+            'assets/images/portraits/${char.id}.png',
+            fit: BoxFit.cover,
+            errorBuilder: (context, error, stackTrace) => Center(
+              child: Icon(
                 char.icon,
                 size: 280,
                 color: _customColor.withValues(alpha: 0.3),
               ),
             ),
           ),
+          // Etiqueta de nombre Vertical (Estilo Editorial)
           Positioned(
-            bottom: 60,
-            left: -20,
-            child: Transform.rotate(
-              angle: -0.06,
+            left: 0,
+            bottom: 40,
+            child: RotatedBox(
+              quarterTurns: 3,
               child: Container(
-                padding: const EdgeInsets.symmetric(
-                  horizontal: 60,
-                  vertical: 15,
+                padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 4),
+                decoration: BoxDecoration(
+                  color: _customColor,
+                  boxShadow: [
+                    BoxShadow(
+                      color: Colors.black.withValues(alpha: 0.3),
+                      blurRadius: 10,
+                      offset: const Offset(2, 0),
+                    ),
+                  ],
                 ),
-                color: _customColor,
                 child: Text(
                   char.displayName.toUpperCase(),
                   style: const TextStyle(
                     color: Colors.black,
-                    fontWeight: FontWeight.bold,
-                    fontSize: 28,
+                    fontWeight: FontWeight.w900,
+                    fontSize: 18,
                     letterSpacing: 4,
                   ),
                 ),
