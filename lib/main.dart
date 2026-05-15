@@ -118,7 +118,6 @@ class _MainMenuOverlayState extends State<MainMenuOverlay> {
 
   Future<void> _checkForUpdates() async {
     try {
-      // NOTA: Reemplazar esta URL con la que proporcione el usuario
       const url =
           'https://raw.githubusercontent.com/Isamorap/ruta_de_cenizas/main/version.json';
       final response = await http
@@ -130,7 +129,7 @@ class _MainMenuOverlayState extends State<MainMenuOverlay> {
         final latestVersion = data['version'] as String;
         final apkUrl = data['url'] as String;
 
-        // Comparamos versiones (puedes mejorar esto con un comparador semántico si es necesario)
+        // Comparamos versiones
         if (latestVersion != currentVersion) {
           if (mounted) {
             setState(() {
@@ -610,7 +609,8 @@ class _LobbyOverlayState extends State<LobbyOverlay> {
               GestureDetector(
                 onTap: () {
                   setState(() {
-                    _selectedChars[i] = (_selectedChars[i] + 1) % kCharacters.length;
+                    _selectedChars[i] =
+                        (_selectedChars[i] + 1) % kCharacters.length;
                     // Opcional: Podríamos sincronizar el color al cambiar el personaje
                     _selectedColors[i] = kCharacters[_selectedChars[i]].color;
                   });
@@ -904,8 +904,16 @@ class _SoloSetupOverlayState extends State<SoloSetupOverlay> {
     return AnimatedContainer(
       duration: const Duration(milliseconds: 400),
       decoration: BoxDecoration(
-        border: Border.all(color: _customColor.withValues(alpha: 0.3), width: 1),
-        boxShadow: [BoxShadow(color: _customColor.withValues(alpha: 0.05), blurRadius: 40)],
+        border: Border.all(
+          color: _customColor.withValues(alpha: 0.3),
+          width: 1,
+        ),
+        boxShadow: [
+          BoxShadow(
+            color: _customColor.withValues(alpha: 0.05),
+            blurRadius: 40,
+          ),
+        ],
       ),
       child: Stack(
         fit: StackFit.expand,
@@ -928,11 +936,19 @@ class _SoloSetupOverlayState extends State<SoloSetupOverlay> {
             child: Transform.rotate(
               angle: -0.06,
               child: Container(
-                padding: const EdgeInsets.symmetric(horizontal: 60, vertical: 15),
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 60,
+                  vertical: 15,
+                ),
                 color: _customColor,
                 child: Text(
                   char.displayName.toUpperCase(),
-                  style: const TextStyle(color: Colors.black, fontWeight: FontWeight.bold, fontSize: 28, letterSpacing: 4),
+                  style: const TextStyle(
+                    color: Colors.black,
+                    fontWeight: FontWeight.bold,
+                    fontSize: 28,
+                    letterSpacing: 4,
+                  ),
                 ),
               ),
             ),
@@ -946,9 +962,16 @@ class _SoloSetupOverlayState extends State<SoloSetupOverlay> {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        const Text("ARCHIVO DE EXPEDICIONARIO", style: TextStyle(color: Colors.white24, fontSize: 10, letterSpacing: 4)),
+        const Text(
+          "ARCHIVO DE EXPEDICIONARIO",
+          style: TextStyle(
+            color: Colors.white24,
+            fontSize: 10,
+            letterSpacing: 4,
+          ),
+        ),
         const SizedBox(height: 20),
-        
+
         // Miniaturas
         Wrap(
           spacing: 10,
@@ -957,21 +980,34 @@ class _SoloSetupOverlayState extends State<SoloSetupOverlay> {
             final c = kCharacters[i];
             final isSel = _selectedChar == i;
             return GestureDetector(
-              onTap: () => setState(() { _selectedChar = i; _customColor = c.color; }),
+              onTap: () => setState(() {
+                _selectedChar = i;
+                _customColor = c.color;
+              }),
               child: AnimatedContainer(
                 duration: const Duration(milliseconds: 200),
-                width: 62, height: 62,
+                width: 62,
+                height: 62,
                 decoration: BoxDecoration(
-                  border: Border.all(color: isSel ? _customColor : Colors.white10, width: isSel ? 2 : 1),
-                  color: isSel ? _customColor.withValues(alpha: 0.15) : Colors.transparent,
+                  border: Border.all(
+                    color: isSel ? _customColor : Colors.white10,
+                    width: isSel ? 2 : 1,
+                  ),
+                  color: isSel
+                      ? _customColor.withValues(alpha: 0.15)
+                      : Colors.transparent,
                 ),
-                child: Icon(c.icon, color: isSel ? _customColor : Colors.white24, size: 28),
+                child: Icon(
+                  c.icon,
+                  color: isSel ? _customColor : Colors.white24,
+                  size: 28,
+                ),
               ),
             );
           }),
         ),
         const SizedBox(height: 25),
-        
+
         // Colores
         Wrap(
           spacing: 12,
@@ -981,40 +1017,79 @@ class _SoloSetupOverlayState extends State<SoloSetupOverlay> {
             return GestureDetector(
               onTap: () => setState(() => _customColor = color),
               child: Container(
-                width: 32, height: 32,
+                width: 32,
+                height: 32,
                 decoration: BoxDecoration(
-                  color: color, 
-                  shape: BoxShape.circle, 
-                  border: Border.all(color: isSel ? Colors.white : Colors.white10, width: 2),
-                  boxShadow: isSel ? [BoxShadow(color: color.withValues(alpha: 0.3), blurRadius: 8)] : null,
+                  color: color,
+                  shape: BoxShape.circle,
+                  border: Border.all(
+                    color: isSel ? Colors.white : Colors.white10,
+                    width: 2,
+                  ),
+                  boxShadow: isSel
+                      ? [
+                          BoxShadow(
+                            color: color.withValues(alpha: 0.3),
+                            blurRadius: 8,
+                          ),
+                        ]
+                      : null,
                 ),
               ),
             );
           }).toList(),
         ),
         const SizedBox(height: 25),
-        
-        Text(char.description, style: const TextStyle(color: Colors.white70, fontSize: 13, height: 1.5, fontStyle: FontStyle.italic)),
+
+        Text(
+          char.description,
+          style: const TextStyle(
+            color: Colors.white70,
+            fontSize: 13,
+            height: 1.5,
+            fontStyle: FontStyle.italic,
+          ),
+        ),
         const Spacer(),
         Row(
           children: [
             Expanded(
-              child: _actionButton("VOLVER", Colors.white.withValues(alpha: 0.05), Colors.white38, () {
-                widget.game.overlays.add('MainMenuOverlay');
-                widget.game.overlays.remove('SoloSetupOverlay');
-              }),
+              child: _actionButton(
+                "VOLVER",
+                Colors.white.withValues(alpha: 0.05),
+                Colors.white38,
+                () {
+                  widget.game.overlays.add('MainMenuOverlay');
+                  widget.game.overlays.remove('SoloSetupOverlay');
+                },
+              ),
             ),
             const SizedBox(width: 15),
             Expanded(
               flex: 2,
-              child: _actionButton("INICIAR ASCENSO", _customColor, Colors.black, () {
-                final players = [
-                  PlayerState(name: char.displayName, color: _customColor, characterId: char.id, isBot: false),
-                  PlayerState(name: "LA SOMBRA", color: Colors.grey, characterId: 'bot_shadow', isBot: true),
-                ];
-                widget.game.startGame(players);
-                widget.game.overlays.remove('SoloSetupOverlay');
-              }),
+              child: _actionButton(
+                "INICIAR ASCENSO",
+                _customColor,
+                Colors.black,
+                () {
+                  final players = [
+                    PlayerState(
+                      name: char.displayName,
+                      color: _customColor,
+                      characterId: char.id,
+                      isBot: false,
+                    ),
+                    PlayerState(
+                      name: "LA SOMBRA",
+                      color: Colors.grey,
+                      characterId: 'bot_shadow',
+                      isBot: true,
+                    ),
+                  ];
+                  widget.game.startGame(players);
+                  widget.game.overlays.remove('SoloSetupOverlay');
+                },
+              ),
             ),
           ],
         ),
@@ -1036,7 +1111,12 @@ class _SoloSetupOverlayState extends State<SoloSetupOverlay> {
               child: Text(
                 label,
                 textAlign: TextAlign.center,
-                style: TextStyle(color: fg, fontWeight: FontWeight.w900, letterSpacing: 0.5, fontSize: 11),
+                style: TextStyle(
+                  color: fg,
+                  fontWeight: FontWeight.w900,
+                  letterSpacing: 0.5,
+                  fontSize: 11,
+                ),
               ),
             ),
           ),
